@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko" data-theme="moon">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>한글 궤도 — 3D 스케이트파크</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+*{box-sizing:border-box}
+:root{color-scheme:dark;--accent:#dce9f5}
+html,body{margin:0;min-height:100%;background:#10151c;color:#eaf0f5;font:14px/1.6 "Noto Sans KR",sans-serif}
+body{background:radial-gradient(ellipse at 50% -80%,#526375,transparent 80%),#10151c}
+[data-theme="sun"]{--accent:#ffd68e}
+[data-theme="water"]{--accent:#8cdedc}
+main{height:100dvh;min-height:320px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:16px;padding:22px 3vw 18px;max-width:2040px;margin:auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand{font-size:20px;font-weight:700;letter-spacing:-1px;white-space:nowrap}
+.brand small{font:500 14px "Barlow Condensed",sans-serif;letter-spacing:2px;color:#97a7b6;margin-left:14px}
+nav{display:flex;gap:6px}
+button{font:inherit;cursor:pointer;color:inherit;border:1px solid #536272;border-radius:5px;padding:10px 20px;background:transparent;transition:background .2s}
+button:hover{background:#ffffff12}button:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+nav button{padding:7px 28px;color:#a6b5c3}
+nav button[aria-pressed="true"]{background:#dce6ef;color:#192330;border-color:#dce6ef;font-weight:700}
+button:disabled{opacity:.55;cursor:wait}
+.viewport{display:grid;place-items:center;container-type:size;min-height:0}
+.stage{width:min(100cqw,calc(100cqh * 16 / 9));aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:8px;background:#b9c3cf;box-shadow:0 20px 80px #0005}
+.stage canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+.stage canvas:active{cursor:grabbing}
+.world{position:absolute;left:28px;top:22px;pointer-events:none;color:#172939}
+h1{font:900 clamp(28px,4vw,60px)/1.15 "Noto Sans KR",sans-serif;margin:0}
+.world p{font:600 clamp(13px,1.4vw,20px) "Barlow Condensed",sans-serif;letter-spacing:3px;margin:6px 0}
+[data-theme="water"] .world{color:#b9f2ec}
+.viewhint{position:absolute;right:22px;bottom:15px;color:#1a303d;background:#e7f3f1b8;padding:4px 11px;border-radius:20px;font-size:11px;pointer-events:none}
+footer{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.primary{background:var(--accent);border-color:var(--accent);color:#15222e;font-weight:700}
+.primary:hover{background:#fff}
+#status{font-size:12px;color:#afbecb;margin:0;text-align:right}
+.preview{margin:0;flex-shrink:0;width:120px}
+.preview[hidden]{display:none}
+.preview video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1);border:1px solid #536272;border-radius:5px;background:#10151c}
+.preview figcaption{font-size:10px;color:#afbecb;text-align:center;margin-top:3px}
+@media(max-width:700px){main{padding:12px;gap:10px}.brand{font-size:16px}.brand small{display:none}nav button{padding:6px 16px}footer{display:block}.controls button{padding:9px 13px;font-size:12px}#status{text-align:left;margin-top:10px}.world{left:16px;top:14px}.viewhint{right:10px;bottom:10px;font-size:10px}}
+@media(max-width:700px){footer:has(.preview:not([hidden])){display:grid;grid-template-columns:minmax(0,1fr) 90px}.preview{width:90px;grid-column:2;grid-row:1/3}footer .controls{grid-column:1}footer #status{grid-column:1}}
+#shop{position:fixed;inset:0;z-index:5;background:#171817;display:grid;place-content:center;justify-items:center;gap:10px;padding:12px}
+#shop[hidden]{display:none}
+#wall{width:min(94vw,calc(148dvh - 130px));aspect-ratio:16/9;position:relative;overflow:hidden;border:5px solid #292b29;background:radial-gradient(ellipse at 50% -25%,#e6ceb789,transparent 70%),repeating-linear-gradient(0deg,#474744 0 6px,#313330 7px 10px,#565853 11px 13px);box-shadow:inset 0 -30px 50px #1119}
+#wall:after{content:'';position:absolute;bottom:0;left:0;right:0;height:8%;background:linear-gradient(#ac8766 0 12%,#392f29 13%);pointer-events:none}
+#wall h1{position:absolute;left:5%;top:3%;margin:0;color:#f5efda;font:italic 900 clamp(18px,4vw,62px)/1 Arial,sans-serif;letter-spacing:-.07em;text-shadow:3px 4px #201f1c}
+.deck{position:absolute;top:20%;height:65%;width:15%;border-radius:48% 48% 44% 44% / 17% 17% 17% 17%;border:3px solid #ceb595;box-shadow:6px 8px 8px #10101099;color:white;font:bold italic clamp(22px,4vw,72px) sans-serif;text-shadow:3px 3px #111;display:grid;place-content:center;padding:0}
+.deck:before,.deck:after{content:'';position:absolute;left:16%;width:68%;height:4%;background:linear-gradient(90deg,#ddd 0 15%,#4b5155 15% 43%,#bdc5c8 44% 57%,#4b5155 58% 85%,#ddd 86%);border-radius:3px}
+.deck:before{top:19%}.deck:after{bottom:19%}
+.deck[data-key=sun]{left:14%;transform:rotate(-7deg);background:repeating-conic-gradient(from 12deg at 60% 38%,#ffce38 0 12deg,#eb4728 13deg 25deg,#a21a36 26deg 32deg)}
+.deck[data-key=moon]{left:43%;background:radial-gradient(circle at 35% 27%,#eceadb 0 10%,transparent 11%),repeating-linear-gradient(-43deg,#38334a 0 12px,#aca8c7 13px 22px,#666074 23px 30px)}
+.deck[data-key=water]{left:72%;transform:rotate(7deg);background:repeating-radial-gradient(ellipse at 10% 68%,#57e8d6 0 7%,#085c7f 8% 14%,#123554 15% 20%)}
+.deck.target{outline:4px solid #efff73}#cutout{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}#finger{position:absolute;width:18px;height:18px;border:3px solid #eaff6b;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+#shop p{margin:0;text-align:center}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+</head>
+<body>
+<main>
+<section id="shop" aria-label="스케이트보드 상점"><div id="wall"><h1>ORBIT SKATE SHOP</h1>
+<button class="deck" data-key="sun" aria-label="1번 해 파크">해</button><button class="deck" data-key="moon" aria-label="2번 달 파크">달</button><button class="deck" data-key="water" aria-label="3번 물 파크">물</button>
+<canvas id="cutout" width="640" height="480"></canvas><i id="finger" hidden></i></div>
+<button id="shopCamera">웹캠 켜기</button><p id="shopHint" role="status">데크를 엄지와 검지로 집거나 클릭해 입장하세요.</p></section>
+<header><div class="brand">한글 궤도 <small>SKATE IN ANOTHER WORLD</small></div>
+<nav aria-label="파크 선택">
+<button data-world="sun" aria-pressed="false">해</button>
+<button data-world="moon" aria-pressed="true">달</button>
+<button data-world="water" aria-pressed="false">물</button>
+</nav></header>
+<div class="viewport"><section id="stage" class="stage" aria-label="입체 한글 스케이트파크">
+<div class="world"><h1 id="worldTitle">달</h1><p id="worldName">LUNAR PARK</p></div>
+<div class="viewhint">드래그해서 공간 둘러보기</div>
+</section></div>
+<footer><div class="controls">
+<button id="camera" class="primary">웹캠 켜고 들어가기</button>
+<button id="push">밀기 →</button>
+<button id="ollie">알리 · Space</button>
+<button id="overhead">위에서 보기</button>
+</div><figure id="preview" class="preview" hidden><video id="webcam" autoplay playsinline muted aria-label="내 웹캠 화면"></video><figcaption>웹캠 미리보기</figcaption></figure><p id="status" role="status">3D 파크를 불러오는 중…</p></footer>
+</main>
+<script type="module">
+import('./app.js').catch(error=>{
+console.error(error);
+document.querySelector('#status').textContent='3D 도구를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.';
+});
+</script>
+</body></html>
