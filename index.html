@@ -16,9 +16,14 @@ main:has(#ride:not([hidden])){max-width:none;height:100dvh;padding:8px clamp(8px
 #ride .bar,#ride #status{margin:0}
 
 body{background:#eee4cb;color:#201d19}header{border-bottom:3px solid #211e1b}header b{font:bold italic 24px Georgia}h1{color:#201d19;text-shadow:3px 3px #ed7966}p,#ride #status{color:#48423a}.cards{gap:18px}.card,.card:nth-child(n){transform:none;border:2px solid #211e1b;box-shadow:4px 5px #211e1b}.card:hover{transform:translateY(-3px)}.card span{background:#fff2d6}.bar .action{background:#ffce51}#ride #title{color:#201d19;background:#fff0d5;padding:2px 10px;transform:rotate(-3deg);font-size:24px;text-shadow:none}#ride #scene{outline:2px solid #211e1b}
+
+#cards{background:repeating-linear-gradient(0deg,#b4a78d 0 56px,#8b806c 57px 60px);border:8px solid #635c4e;padding:25px 5%;gap:4%;grid-template-columns:repeat(3,minmax(0,1fr));box-shadow:inset 0 6px 30px #0005}
+#cards .card{display:block;border:0;box-shadow:none;background:transparent;overflow:visible}#cards .card canvas{width:100%}#cards .card span{display:block;text-align:center;border:0;font-size:15px;background:#eee4cbe6}#cards .card span b{display:none}
+#selection{max-width:960px;margin:auto}#holding{display:block;width:100%;aspect-ratio:16/9;background:#b4a78d;border:2px solid #211e1b}.choice-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}#choiceHint{margin:10px 0;font-size:14px}
 </style></head><body><main>
 <header><b>Jamo Skate Club</b><button id="back" hidden>글자 바꾸기 ↗</button></header>
 <section id="menu"><h1>한글 스케이트파크</h1><p>타고 싶은 글자를 고르세요.</p><div class="cards" id="cards"></div></section>
+<section id="selection" hidden><canvas id="holding" width="960" height="540" aria-label="선택한 보드를 손에 든 모습"></canvas><p id="choiceHint" role="status">웹캠을 켜고 한 손을 허벅지 옆으로 내려 주세요.</p><div class="choice-actions"><button id="choiceCamera">웹캠 켜기</button><button id="startRide">이 보드로 시작</button><button id="chooseAgain">다른 보드 고르기</button></div></section>
 <section id="ride" hidden><div class="stage-slot"><div class="stage-frame"><h1 id="title"></h1><canvas id="scene" width="1080" height="450"></canvas></div></div>
 <div class="bar"><button id="push" class="action">밀기 →</button><button id="ollie">알리 · Space</button><button id="again" hidden>다시 타기</button><button id="camera">내 몸으로 타기</button><video id="cam" autoplay playsinline muted hidden></video></div>
 <small id="status" role="status">→ 키를 톡톡 눌러 달리고, 획 끝에서 스페이스바로 뛰세요.</small></section></main>
@@ -134,15 +139,56 @@ function course(g,t){
  g.restore();
 }
 function paintCard(g,t){
- const im=backgrounds.get(t)||printFor(t),[sky,paint]=palette(t);g.fillStyle=sky;g.fillRect(0,0,440,510);
- if(im.naturalWidth){const w=im.height*440/510;const offset=t===themes[0]?0:t===themes[1]?(im.width-w)*.17:im.width-w;
- g.drawImage(im,offset,0,w,im.height,0,0,440,510)}
- g.save();g.translate(20,30);g.rotate(-.07);g.fillStyle='#fff1cf';g.fillRect(0,0,114,102);
- g.fillStyle=black;g.font='italic 900 78px Malgun Gothic,sans-serif';g.fillText(t.word,10,82);g.restore();
+ g.clearRect(0,0,440,510);
+ g.fillStyle='#343b36';g.fillRect(200,24,40,32);
+ g.save();g.translate(220,265);g.rotate(Math.PI/2);
+ drawHeldDeck(0,0,.98,g,t);g.restore();
 }
+let selectedTheme=null;
+function chooseBoard(t){
+ selectedTheme=t;theme=t;active=false;menu.hidden=true;selection.hidden=false;
+ choiceHint.textContent='선택한 '+t.word+' 보드예요. 웹캠을 켜고 손을 허벅지 옆으로 내려 주세요.';
+ choiceCamera.textContent=cam.srcObject?'웹캠 끄기':'웹캠 켜기';
+}
+function drawSelection(){
+ const g=holding.getContext('2d'),w=holding.width,h=holding.height;
+ g.fillStyle='#a89d87';g.fillRect(0,0,w,h);
+ for(let y=0;y<h;y+=60){g.fillStyle='#8c8270';g.fillRect(0,y,w,2)}
+ g.fillStyle='#736b60';g.fillRect(0,h*.85,w,h*.15);
+ let hx=w*.43,hy=h*.43,scale=.65;
+ if(finishPerson&&performance.now()-finishPerson.time<750){
+ const p=finishPerson.points,iw=personCutout.width,ih=personCutout.height;
+ const feet=Math.max(...[27,28,29,30,31,32].filter(i=>p[i].visibility>.4).map(i=>p[i].y));
+ const top=Math.max(0,p[0].y-.1),bodyHeight=Math.max(.3,feet-top)*ih;
+ const ratio=h*.88/bodyHeight,cx=(p[23].x+p[24].x)*iw/2;
+ const ox=w*.54+cx*ratio,oy=h*.95-feet*ih*ratio;
+ const place=()=>{g.translate(ox,oy);g.scale(-ratio,ratio)};
+ g.save();place();g.drawImage(personCutout,0,0);g.restore();
+ const wrists=[15,16].filter(i=>p[i].visibility>.5);
+ if(!wrists.length){choiceHint.textContent='보드를 들 손을 카메라에 보여 주세요.';return}
+ const wrist=wrists.sort((a,b)=>p[b].visibility-p[a].visibility)[0],hand=p[wrist];
+ hx=ox-hand.x*iw*ratio;hy=oy+hand.y*ih*ratio;
+ scale=Math.min(h*.53/436,(h*.95-hy)/436);
+ scale=Math.max(.15,scale);
+ g.save();g.translate(hx-28*scale,hy+205*scale);g.rotate(Math.PI/2+.07);drawHeldDeck(0,0,scale,g);g.restore();
+ drawForegroundArm(p,wrist,iw,ih);g.save();place();g.drawImage(armCutout,0,0);g.restore();
+ }else{
+ g.save();g.translate(w*.54,h*.92);
+ stroke(g,[[-27,-160],[-30,0]],'#242c33',45);stroke(g,[[28,-160],[35,0]],'#242c33',45);
+ stroke(g,[[0,-322],[0,-163]],'#eee7d5',100);circle(g,0,-375,34,'#bd8a67');
+ stroke(g,[[-48,-295],[-82,-205]],'#eee7d5',28);
+ g.restore();
+ hx=w*.54-82;hy=h*.92-205;
+ g.save();g.translate(hx-20,hy+135);g.rotate(Math.PI/2+.07);drawHeldDeck(0,0,.65,g);g.restore();
+ circle(g,hx,hy,12,'#bd8a67');
+ }
+}
+startRide.onclick=()=>{selection.hidden=true;enter(selectedTheme)};
+chooseAgain.onclick=()=>{selection.hidden=true;menu.hidden=false;selectedTheme=null;cards.firstChild.focus()};
+choiceCamera.onclick=async()=>{const task=camera.onclick();choiceCamera.disabled=true;setTimeout(()=>{choiceCamera.disabled=false;choiceCamera.textContent=cam.srcObject?'웹캠 끄기':'웹캠 켜기'},1200);await task};
 themes.forEach(t=>{
  const btn=document.createElement('button');btn.className='card';btn.innerHTML='<canvas width="440" height="510" aria-hidden="true"></canvas><span>'+t.parts+'<b>↗</b></span>';
- btn.onclick=()=>enter(t);cards.append(btn);paintCard(btn.firstChild.getContext('2d'),t);
+ btn.onclick=()=>chooseBoard(t);cards.append(btn);paintCard(btn.firstChild.getContext('2d'),t);
 });
 prints.forEach((im,i)=>{im.onload=()=>{themes.forEach((t,k)=>paintCard(cards.children[k].firstChild.getContext('2d'),t));if(active){const g=wall.getContext('2d');landscape(g,theme);course(g,theme)}};im.src='park-print-'+(i+1)+'.jpg'});
 function tone(freq,end,duration,type='triangle',volume=.16){
@@ -187,7 +233,8 @@ function fitScene(){
  if(width&&height&&(scene.width!==width||scene.height!==height)){scene.width=width;scene.height=height}
 }
 new ResizeObserver(fitScene).observe(scene);
-function drawHeldDeck(x,y,size){
+function drawHeldDeck(x,y,size,g=ctx,deckTheme=theme){
+ const ctx=g,theme=deckTheme;
  ctx.save();ctx.translate(x,y);ctx.scale(size,size);ctx.rotate(.035);
  ctx.beginPath();ctx.roundRect(-218,-47,436,94,44);ctx.fillStyle='#ecd2a0';ctx.fill();ctx.lineWidth=4;ctx.strokeStyle='#20252b';ctx.stroke();
  ctx.save();ctx.clip();const print=printFor(theme);
@@ -260,7 +307,7 @@ function draw(){
  stroke(ctx,[[-13,-92+h],[13,-93+h]],'#212924',5)}
  stroke(ctx,[[-36,-9],[-27,-6],[27,-6],[37.5,-10]],'#242723',4);circle(ctx,-21,-2,3,'#191e18');circle(ctx,21,-2,3,'#191e18');ctx.restore();
 }
-function frame(now){if(active){step(Math.min(.034,(now-last)/1000));draw()}last=now;requestAnimationFrame(frame)}requestAnimationFrame(frame);
+function frame(now){if(!selection.hidden)drawSelection();else if(active){step(Math.min(.034,(now-last)/1000));draw()}last=now;requestAnimationFrame(frame)}requestAnimationFrame(frame);
 const base='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
 let stream=null,session=0,model,lastDeep=0,extended=false,webcamBackdrop=null;
 function makeRoomBackground(){
@@ -358,7 +405,7 @@ camera.onclick=async()=>{
  if(id!==session){acquired.getTracks().forEach(t=>t.stop());return}stream=acquired;cam.srcObject=stream;cam.hidden=true;await cam.play();webcamBackdrop=makeRoomBackground();msg.textContent='동작 인식 도구를 불러오는 중…';
  if(!window.Pose)await new Promise((ok,fail)=>{const s=document.createElement('script');s.src=base+'pose.js';s.onload=ok;s.onerror=fail;document.head.append(s)});
  if(id!==session)return;if(!model){model=new Pose({locateFile:file=>base+file});model.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:true,smoothSegmentation:true})}
- model.onResults(r=>{if(id!==session)return;webcamBackdrop?.userData.update(r);updateFinishPerson(r);const tracked=measure(r.poseLandmarks);if(finished)return;msg.textContent=tracked?(bent?'지금 빠르게 펴세요!':'옆으로 서서 한 발을 뒤로 밀었다 모으세요. 무릎을 굽혔다 펴면 알리!'):'뒤로 물러나 발목까지 보여 주세요.'});
+ model.onResults(r=>{if(id!==session)return;webcamBackdrop?.userData.update(r);updateFinishPerson(r);const tracked=active?measure(r.poseLandmarks):false;if(!selection.hidden){choiceCamera.textContent="웹캠 끄기";choiceHint.textContent=finishPerson?"손에 든 보드를 확인하고 이 보드로 시작을 눌러 주세요.":msg.textContent;return}if(finished)return;msg.textContent=tracked?(bent?'지금 빠르게 펴세요!':'옆으로 서서 한 발을 뒤로 밀었다 모으세요. 무릎을 굽혔다 펴면 알리!'):'뒤로 물러나 발목까지 보여 주세요.'});
  camera.textContent='카메라 끄기';camera.disabled=false;
  while(id===session){await model.send({image:cam});await new Promise(requestAnimationFrame)}
  }catch(e){if(id===session){stop();model=null;msg.textContent=e.name==='NotAllowedError'?'카메라 권한을 허용해 주세요.':'카메라와 인터넷 연결을 확인해 주세요. 스페이스바로도 탈 수 있어요.'}}
