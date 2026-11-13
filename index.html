@@ -1,5 +1,13 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>한글 스케이트파크</title>
+<script id="exhibition-reset">
+// Register before the app so R still reloads if the app fails to initialize.
+window.addEventListener('keydown',event=>{
+ if(event.code!=='KeyR'||event.repeat||event.ctrlKey||event.altKey||event.metaKey)return;
+ if(event.target?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
+ event.preventDefault();window.location.reload();
+},true);
+</script>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#ece9dd;color:#191e1c;font:16px/1.5 "Malgun Gothic",sans-serif}main{max-width:1240px;margin:auto;padding:4vh 4vw}header,nav,.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}header{border-bottom:3px solid;padding-bottom:12px}header b{font:italic 900 24px Georgia}button{font:inherit;color:inherit;cursor:pointer;border:2px solid;background:transparent;padding:.55em 1em;font-weight:bold}h1{font-size:clamp(36px,6vw,88px);line-height:1.1;letter-spacing:-.09em;margin:5vh 0 1vh}p{margin:10px 0 24px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{padding:0;text-align:left;overflow:hidden;background:var(--paper);box-shadow:4px 5px #222820;transition:transform .16s}.card:hover,.card:focus-visible{transform:translateY(-5px)}.card span{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:2px solid}.card canvas{display:block;width:100%}#scene{width:100%;display:block;margin:12px 0;border:2px solid}button:disabled{opacity:.6}.bar{margin-top:16px;justify-content:flex-start}.action{background:#212722;color:white}small{display:block;margin-top:10px}video{width:90px;vertical-align:middle;border-radius:4px;transform:scaleX(-1)}[hidden]{display:none!important}@media(max-width:620px){.cards{grid-template-columns:1fr}.card{display:flex;align-items:center}.card canvas{width:45%}.card span{width:55%;border:0}main{padding:18px}}
 body{background-color:#171523;background-image:radial-gradient(#393444 1px,transparent 1px);background-size:6px 6px;color:#fff6df}
@@ -11,23 +19,51 @@ main:has(#ride:not([hidden])){max-width:none;height:100dvh;padding:8px clamp(8px
 #ride:not([hidden]){position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:6px;min-height:0}
 #ride #title{position:absolute;z-index:1;top:8px;left:14px;margin:0;font-size:clamp(22px,3vw,42px);pointer-events:none}
 .stage-slot{container-type:size;display:grid;place-items:center}
-.stage-frame{position:relative;width:min(100cqw,calc(100cqh * 16 / 9));aspect-ratio:16/9}
+.stage-frame{position:relative;width:min(100%,calc(100cqh * 16 / 9));aspect-ratio:16/9}
 #ride #scene{width:100%;height:100%;min-height:0;margin:0;border:0;outline:2px solid #fff5e1}
 #ride .bar,#ride #status{margin:0}
 
 body{background:#eee4cb;color:#201d19}header{border-bottom:3px solid #211e1b}header b{font:bold italic 24px Georgia}h1{color:#201d19;text-shadow:3px 3px #ed7966}p,#ride #status{color:#48423a}.cards{gap:18px}.card,.card:nth-child(n){transform:none;border:2px solid #211e1b;box-shadow:4px 5px #211e1b}.card:hover{transform:translateY(-3px)}.card span{background:#fff2d6}.bar .action{background:#ffce51}#ride #title{color:#201d19;background:#fff0d5;padding:2px 10px;transform:rotate(-3deg);font-size:24px;text-shadow:none}#ride #scene{outline:2px solid #211e1b}
 
-#cards{background:repeating-linear-gradient(0deg,#b4a78d 0 56px,#8b806c 57px 60px);border:8px solid #635c4e;padding:25px 5%;gap:4%;grid-template-columns:repeat(3,minmax(0,1fr));box-shadow:inset 0 6px 30px #0005}
-#cards .card{display:block;border:0;box-shadow:none;background:transparent;overflow:visible}#cards .card canvas{width:100%}#cards .card span{display:block;text-align:center;border:0;font-size:15px;background:#eee4cbe6}#cards .card span b{display:none}
-#selection{max-width:960px;margin:auto}#holding{display:block;width:100%;aspect-ratio:16/9;background:#b4a78d;border:2px solid #211e1b}.choice-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}#choiceHint{margin:10px 0;font-size:14px}
+main:has(#menu:not([hidden])){max-width:none;height:100dvh;padding:14px clamp(12px,2vw,30px);display:flex;flex-direction:column;gap:10px}
+#menu:not([hidden]){flex:1;display:flex;flex-direction:column;min-height:0;gap:10px}
+.lobby-heading{position:absolute;left:4%;right:4%;top:3%;z-index:2;text-align:center;pointer-events:none}.lobby-heading h1{font-size:clamp(28px,4.4vw,68px);margin:0;line-height:1.15}
+.lobby-slot{position:relative;flex:1;min-height:180px;border:2px solid #211e1b;overflow:hidden;background:#b4a78d}
+#holding{position:absolute;inset:0;display:block;width:100%;height:100%}
+#cards{position:absolute;inset:0;display:block;background:none;border:0;padding:0;box-shadow:none;pointer-events:none}
+#cards .card,#cards .card:nth-child(n){position:absolute;display:block;transform:translate(-50%,-50%);pointer-events:auto;border:0;padding:0;background:transparent;box-shadow:none;color:transparent}
+#cards .card:hover{transform:translate(-50%,-50%)}#cards .card:focus-visible{outline:3px dashed #ffce51;outline-offset:4px}
+#cards .card span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);padding:0;border:0}
+.choice-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.choice-actions button{font-size:14px;padding:.35em .8em;background:#fff2d6}
+#choiceHint{flex:1;margin:0;font-size:clamp(14px,1.3vw,18px)}
+#countdownPanel{position:absolute;left:18px;bottom:18px;width:min(480px,44%);padding:14px 20px;background:#fff5dfed;border:2px solid #211e1b;box-shadow:4px 4px #211e1b;pointer-events:none;display:grid;grid-template-columns:1fr auto;gap:8px 18px;align-items:center}
+#countdownPanel p{margin:0;color:#201d19;font-size:clamp(15px,1.5vw,21px)}#countdownNumber{font:bold 48px/1 Georgia;color:#a83425}#countdownProgress{grid-column:1/-1;width:100%;height:7px;accent-color:#a83425}
+@media(max-width:620px){.lobby-heading{gap:3px}.choice-actions{gap:6px}#choiceHint{flex-basis:100%}#countdownPanel{left:10px!important;right:auto!important;width:calc(100% - 20px);bottom:10px;padding:10px 14px}}
+main,main:has(#menu:not([hidden])),main:has(#ride:not([hidden])){max-width:none;height:100dvh;padding:12px clamp(12px,2vw,28px);display:flex;flex-direction:column;gap:10px}
+#ride:not([hidden]){flex:1}
+.journey{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;flex:none;font-size:clamp(11px,1.2vw,16px);text-align:center}
+.journey span{border:1px solid #b4a78d;padding:6px;background:#f8efd9}.journey [aria-current="step"]{background:#ffce51;border:2px solid #211e1b;font-weight:bold}
+#lesson:not([hidden]),#studio:not([hidden]){flex:1;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:12px}
+.stage-heading h1{font-size:clamp(26px,3.2vw,46px);margin:0}.stage-heading p{margin:4px 0 0;color:#48423a}
+.learn-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,30%);gap:18px;min-height:0}
+.preview-slot{min-height:0;position:relative;overflow:hidden;border:2px solid #211e1b;background:#f8efd9}
+.preview-slot canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
+.lesson-cards{display:grid;grid-template-rows:1fr 1fr;gap:14px}.lesson-card{border:2px solid #211e1b;padding:20px;background:#fff8e9;display:flex;flex-direction:column;justify-content:center;gap:8px}
+.lesson-card b{font-size:clamp(20px,2vw,30px)}.lesson-card p{margin:0;color:#48423a}.lesson-card[data-done="true"]{background:#dbe7b5}.lesson-card[data-done="true"] b::after{content:" ✓"}
+.stage-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.stage-footer p{margin:0;color:#48423a}.stage-footer button{background:#ffce51}
+@media(max-width:620px){.journey span{padding:5px 2px}.learn-layout{grid-template-columns:1fr;grid-template-rows:minmax(160px,1fr) auto;gap:8px}.lesson-cards{grid-template-columns:1fr 1fr;grid-template-rows:auto;gap:8px}.lesson-card{padding:10px;font-size:12px}.lesson-card b{font-size:18px}.stage-heading p{font-size:13px}.stage-footer{font-size:13px}}
 </style></head><body><main>
-<header><b>Jamo Skate Club</b><button id="back" hidden>글자 바꾸기 ↗</button></header>
-<section id="menu"><h1>한글 스케이트파크</h1><p>타고 싶은 글자를 고르세요.</p><div class="cards" id="cards"></div></section>
-<section id="selection" hidden><canvas id="holding" width="960" height="540" aria-label="선택한 보드를 손에 든 모습"></canvas><p id="choiceHint" role="status">웹캠을 켜고 한 손을 허벅지 옆으로 내려 주세요.</p><div class="choice-actions"><button id="choiceCamera">웹캠 켜기</button><button id="startRide">이 보드로 시작</button><button id="chooseAgain">다른 보드 고르기</button></div></section>
+<header><b>Jamo Skate Club</b><nav><button id="back" hidden>글자 바꾸기 ↗</button><button id="resetExhibition" type="button" aria-keyshortcuts="R" onclick="window.location.reload()">처음부터 (R)</button></nav></header>
+<nav class="journey" aria-label="체험 단계"><span id="stepShop" aria-current="step">1 보드샵</span><span id="stepLearn">2 타는 법 배우기</span><span id="stepPark">3 파크</span><span id="stepStudio">4 보드와 촬영</span></nav>
+<section id="menu"><div class="lobby-slot"><div class="lobby-heading"><h1>데크 디자인을 골라보세요!</h1></div><canvas id="holding" width="1280" height="720" aria-label="나란히 걸린 보드 세 개와 배경을 지운 내 모습. 보드에 손을 가까이 가져가면 선택됩니다."></canvas><div class="cards" id="cards" aria-label="스케이트보드 선택"></div>
+<div id="countdownPanel" hidden><p>스케이트보드가 마음에 드시나요?<br><strong id="countdownText" role="status">5초 후 타는 법을 배우러 이동합니다.</strong></p><b id="countdownNumber" aria-hidden="true">5</b><progress id="countdownProgress" max="5" value="0" aria-label="타는 법 배우기로 이동하기까지의 진행 시간"></progress></div></div>
+<div class="choice-actions"><p id="choiceHint" role="status">카메라를 준비하고 있습니다. Chrome에서 카메라 사용을 허용해 주세요.</p><button id="choiceCamera">웹캠 준비 중…</button><button id="startRide" hidden>타는 법 배우기</button><button id="chooseAgain" hidden>선택 취소</button></div></section>
+<section id="lesson" hidden><div class="stage-heading"><h1>두 가지 동작만 배워 볼까요?</h1><p>내 모습을 보며 하나씩 따라 해 보세요.</p></div><div class="learn-layout"><div class="preview-slot"><canvas id="lessonCanvas" width="960" height="640" aria-label="알리와 두 발 벌리고 서기를 연습하는 내 모습과 동작 안내"></canvas></div><div class="lesson-cards"><div id="learnJump" class="lesson-card" data-done="false"><b>1. 두 발 함께 띄우기</b><p>양발을 바닥에 놓고, 가볍게 제자리에서 뛰어 보세요. 알리가 됩니다!</p></div><div id="learnStance" class="lesson-card" data-done="false"><b>2. 두 발 벌리고 서기</b><p>두 발을 어깨너비 정도로 벌려 보세요. 보드가 앞으로 갑니다.</p></div></div></div><div class="stage-footer"><p id="lessonStatus" role="status">양쪽 발목이 카메라에 보이도록 서 주세요.</p></div></section>
 <section id="ride" hidden><div class="stage-slot"><div class="stage-frame"><h1 id="title"></h1><canvas id="scene" width="1080" height="450"></canvas></div></div>
 <div class="bar"><button id="push" class="action">밀기 →</button><button id="ollie">알리 · Space</button><button id="again" hidden>다시 타기</button><button id="camera">내 몸으로 타기</button><video id="cam" autoplay playsinline muted hidden></video></div>
-<small id="status" role="status">→ 키를 톡톡 눌러 달리고, 획 끝에서 스페이스바로 뛰세요.</small></section></main>
-<script>
+<small id="status" role="status">두 발 벌리고 서기 → 전진 · 두 발 함께 뛰기 → 알리</small></section>
+<section id="studio" hidden><div class="stage-heading"><h1>내 보드와 함께</h1><p>오늘 고른 데크와 나만의 포즈를 만들어 보세요.</p></div><div class="preview-slot"><canvas id="studioCanvas" width="1280" height="720" aria-label="내 보드와 함께하는 포즈 화면"></canvas></div><div class="stage-footer"><p id="studioLabel"></p><button id="studioReturn">보드샵으로 돌아가기</button></div></section></main>
+<script id="app-script">
 function arc(a,control,b){
  return Array.from({length:25},(_,i)=>{const t=i/24,u=1-t;return [u*u*a[0]+2*u*t*control[0]+t*t*b[0],u*u*a[1]+2*u*t*control[1]+t*t*b[1]]});
 }
@@ -41,13 +77,21 @@ const seaRamps=[
  arc([600,300],[746,334],[910,286]),[[755,315],[755,400]],
  [[1080,260],[1520,238],[1520,301],[1090,316],[1090,370],[1560,359]]
 ];
+const sunRing=Array.from({length:41},(_,i)=>[413+90*Math.cos(Math.PI+i*Math.PI/20),257+82*Math.sin(Math.PI+i*Math.PI/20)]);
+// Tilt ㅐ by 45 degrees. Its lower left end joins the rideable edge of ㅎ.
+const sunAe=(x,y)=>[550+(x-y+295)*Math.SQRT1_2,270+(x+y-295)*Math.SQRT1_2];
+const sunRamps=[[[370,90],[452,90]],[[323,130],[495,130]],sunRing,
+ [sunRing[17],sunAe(0,295),sunAe(0,145),sunAe(153,145),sunAe(153,0)],
+ [sunAe(0,145),sunAe(0,0)],[sunAe(153,295),sunAe(153,145)]];
 const themes=[
- {word:'해',parts:'ㅎ　ㅐ',paper:'#ffad51',ink:'#a83425',paths:[[[370,90],[452,90]],[[323,130],[495,130]],Array.from({length:41},(_,i)=>[413+90*Math.cos(Math.PI+i*Math.PI/20),257+82*Math.sin(Math.PI+i*Math.PI/20)]),[[551,74],[551,369]],[[551,219],[704,219]],[[704,74],[704,369]]]},
+ {word:'해',parts:'ㅎ　ㅐ',paper:'#ffad51',ink:'#a83425',paths:sunRamps},
  {word:'달',parts:'ㄷ　ㅏ　ㄹ',paths:moonRamps},
  {word:'물',parts:'ㅁ　ㅜ　ㄹ',paths:seaRamps}
 ];
 const scene=document.querySelector('#scene'),ctx=scene.getContext('2d'),msg=document.querySelector('#status');
-const hint='웹캠에 왼쪽 어깨와 신발이 보이게 옆으로 서세요. → 밀기 · 스페이스바 알리';
+const hint='두 발을 벌리고 서 있으면 전진 · 두 발 함께 뛰면 알리!';
+const gamePace=.5;
+let stage=1,learning={jump:false,stance:false,stanceSince:null,goAt:null},lastStancePush=-Infinity;
 let theme,rails=[],rider,active=false,last=0,audio,fish=[],bent=false,flash=0,goal=0,bank=0,finished=false,finishedAt=0;
 function stroke(g,path,color,width){g.beginPath();path.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.strokeStyle=color;g.lineWidth=width;g.stroke()}
 function circle(g,x,y,r,color){g.fillStyle=color;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill()}
@@ -71,7 +115,20 @@ function motif(g,t,x,y,size){
  }
  g.beginPath();g.moveTo(-27,0);g.quadraticCurveTo(-3,-32,29,-1);g.quadraticCurveTo(2,27,-27,0);g.fillStyle=cream;g.fill();g.strokeStyle=black;g.lineWidth=4;g.stroke();circle(g,3,-2,9,black);circle(g,6,-5,2,cream);g.restore();
 }
-const prints=[new Image(),new Image()];
+const obstacleArt=new Map([
+ [themes[0],{file:'sun_quest.png',base:'#d8a058',side:'#4a3225',steel:'#887461',horizontal:[[351,260,812,74],[330,466,864,66],[1936,700,265,80]],vertical:[[1731,254,160,1040],[2237,253,110,1030]],ring:[314,554,915,809]}],
+ [themes[1],{file:'moon_quest.png',base:'#27344d',side:'#191628',steel:'#9296a0',horizontal:[[214,365,704,150],[1760,350,660,130]],vertical:[[1198,341,149,880],[215,610,150,620]]}],
+ [themes[2],{file:'sea_quest.png',base:'#398f9f',side:'#113c50',steel:'#91a2a5',horizontal:[[1056,480,566,150],[1920,425,380,110]],vertical:[[1260,690,150,420],[185,535,105,450]]}]
+]);
+obstacleArt.forEach((art,t)=>{art.image=new Image();art.image.onload=()=>{if(active&&theme===t)paintWall(t)};art.image.src='assets/obstacles/'+art.file});
+const deckArt=new Map([
+ [themes[0],{file:'sun_deck.png',bounds:[351,122,826,2495],outline:'M767 122 C1004 122 1174 339 1175 637 L1177 2168 C1175 2427 1012 2612 775 2617 C540 2617 352 2416 351 2158 L352 642 C352 346 526 124 767 122 Z'}],
+ [themes[1],{file:'moon_deck_v2.png',bounds:[427,144,681,2432],outline:'M768 144 C971 144 1103 338 1106 617 L1108 2159 C1108 2410 971 2576 768 2576 C568 2576 427 2409 427 2154 L430 619 C430 336 567 144 768 144 Z'}],
+ [themes[2],{file:'sea_deck.png',bounds:[421,140,688,2434],outline:'M762 140 C955 142 1102 336 1105 622 L1109 2150 C1108 2413 973 2570 767 2574 C563 2574 421 2420 421 2150 L421 620 C421 337 563 140 762 140 Z'}]
+]);
+deckArt.forEach(art=>{art.image=new Image();art.clip=new Path2D(art.outline);art.image.src='assets/decks/'+art.file});
+const deckWidth=112;
+const shopWall=new Image();shopWall.src='assets/shop-wall-graffiti.png';
 const backgrounds=new Map([[themes[1],new Image()],[themes[2],new Image()]]);
 function cover(g,image,x,y,w,h){
  const iw=image.videoWidth||image.naturalWidth||image.width,ih=image.videoHeight||image.naturalHeight||image.height;
@@ -79,12 +136,8 @@ function cover(g,image,x,y,w,h){
  const sw=w/scale,sh=h/scale;
  g.drawImage(image,(iw-sw)/2,(ih-sh)/2,sw,sh,x,y,w,h);
 }
-backgrounds.forEach((image,t)=>{
- image.onload=()=>{themes.forEach((item,i)=>paintCard(cards.children[i].firstChild.getContext('2d'),item));};
- image.src=t===themes[1]?'moon.png':'sea.png';
-});
+backgrounds.forEach((image,t)=>{image.src=t===themes[1]?'moon.png':'sea.png'});
 
-function printFor(t){return prints[t===themes[0]?0:1]}
 function palette(t){
  return t===themes[0]?['#abd9da','#ee7261','#ffd164']:t===themes[1]?['#f2dec0','#27639a','#c1d74c']:['#b5d9d4','#136e89','#79dfbd'];
 }
@@ -94,7 +147,7 @@ function grain(g,w,h){
 }
 function landscape(g,t){
  if(backgrounds.has(t))return;
- const [sky,paint]=palette(t);g.fillStyle=sky;g.fillRect(0,0,1080,450);
+ const [sky]=palette(t),paint=obstacleArt.get(t).base;g.fillStyle=sky;g.fillRect(0,0,1080,450);
  // Side elevation: all distant objects share one horizontal horizon.
  g.save();g.globalAlpha=.27;
  for(let i=0;i<54;i++){let h=8+Math.abs(Math.sin(i*29))*41;g.fillStyle='#4d5d58';g.fillRect(i*22,300-h,18,h)}
@@ -107,90 +160,257 @@ function landscape(g,t){
  for(const flip of [false,true]){
  g.save();if(flip){g.translate(1080,0);g.scale(-1,1)}
  g.beginPath();g.moveTo(-2,160);g.lineTo(79,160);g.bezierCurveTo(83,255,112,333,216,347);g.lineTo(-2,347);g.closePath();g.fillStyle=paint;g.fill();g.strokeStyle=black;g.lineWidth=3;g.stroke();g.clip();
- const im=printFor(t);if(im.naturalWidth)g.drawImage(im,0,im.height*.23,im.width*.27,im.height*.4,-5,168,195,176);g.restore();
+ const art=obstacleArt.get(t),crop=art.vertical[0];if(art.image.naturalWidth)g.drawImage(art.image,crop[0],crop[1]+crop[3]*.3,crop[2],crop[2],-5,168,195,176);g.restore();
  }
  grain(g,1080,450);
 }
+function obstaclePanels(t){
+ const art=obstacleArt.get(t),panels=[];let verticalIndex=0;
+ const add=(contours,crop,vertical=false)=>panels.push({contours,crop,vertical});
+ t.paths.forEach((path,index)=>{
+   const crop=art.horizontal[t===themes[0]?(index===0?0:index===1?1:2):index%art.horizontal.length];
+   const closed=Math.hypot(path[0][0]-path.at(-1)[0],path[0][1]-path.at(-1)[1])<1;
+   const xs=path.map(p=>p[0]),ys=path.map(p=>p[1]);
+   const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
+   if(closed&&path.length>30){
+     const cx=(left+right)/2,cy=(top+bottom)/2;
+     add([path,path.map(([x,y])=>[cx+(x-cx)*.60,cy+(y-cy)*.60+4])],art.ring);return;
+   }
+   if(closed){
+     add([[[left,top],[right,top],[right,bottom+46],[left,bottom+46]],[[left+38,top+46],[right-38,top+46],[right-38,bottom],[left+38,bottom]]],crop);return;
+   }
+   let run=[];
+   const flush=()=>{if(run.length>1)add([[...run,...run.map(([x,y])=>[x,y+46]).reverse()]],crop);run=[]};
+   for(let i=1;i<path.length;i++){
+     const a=path[i-1],b=path[i],vertical=Math.abs(b[0]-a[0])<Math.abs(b[1]-a[1])*.65;
+     if(vertical){
+       flush();const [upper,lower]=a[1]<b[1]?[a,b]:[b,a];
+       add([[[upper[0]-22,upper[1]],[upper[0]+22,upper[1]],[lower[0]+22,lower[1]+46],[lower[0]-22,lower[1]+46]]],art.vertical[verticalIndex++%art.vertical.length],true);
+     }else{if(!run.length)run.push(a);run.push(b)}
+   }
+   flush();
+ });
+ return panels.sort((a,b)=>Number(b.vertical)-Number(a.vertical));
+}
+function panelPath(contours){
+ const face=new Path2D();
+ contours.forEach(points=>{points.forEach(([x,y],i)=>i?face.lineTo(x,y):face.moveTo(x,y));face.closePath()});
+ return face;
+}
 function course(g,t){
- const [,paint,highlight]=palette(t),im=printFor(t);
- g.save();g.lineJoin='round';g.lineCap='round';
- // A deep painted fascia and a pale coping share the collision path.
+ const art=obstacleArt.get(t),depth=[9,10],panels=obstaclePanels(t),fronts=panels.map(panel=>panelPath(panel.contours));
+ g.save();g.lineJoin='miter';g.lineCap='butt';
+ for(const panel of panels){
+   const face=panelPath(panel.contours),outer=panel.contours[0];
+   const xs=outer.map(p=>p[0]),ys=outer.map(p=>p[1]),x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;
+   // Solid, dark side walls give the letter blocks the reference's depth.
+   g.save();g.translate(...depth);g.fillStyle=art.side;g.fill(face,'evenodd');g.lineWidth=3;g.strokeStyle='#171b1d';g.stroke(face);g.restore();
+   for(const contour of panel.contours)contour.forEach((a,i)=>{
+     const b=contour[(i+1)%contour.length];
+     polygon(g,[a,b,[b[0]+depth[0],b[1]+depth[1]],[a[0]+depth[0],a[1]+depth[1]]],art.side);
+   });
+   g.fillStyle=art.base;g.fill(face,'evenodd');
+   g.save();g.clip(face,'evenodd');
+   if(art.image.naturalWidth)g.drawImage(art.image,...panel.crop,x,y,w,h);
+   // A narrow highlight at each panel edge keeps the paper and metal readable.
+   g.strokeStyle='#fff5dd66';g.lineWidth=1.3;g.stroke(face);g.restore();
+   g.strokeStyle='#202023';g.lineWidth=2.8;g.stroke(face);
+   if(panel.vertical){
+     const cap=[[outer[0][0],outer[0][1]-7],[outer[1][0],outer[1][1]-7]];
+     stroke(g,cap,'#171b1d',9);stroke(g,cap,art.steel,6);stroke(g,cap,'#eee9d7',1.2);
+   }
+ }
+ // Coping stays on the original ride paths; only its material changes.
  for(const path of t.paths){
-   const face=new Path2D();
-   path.forEach(([x,y],i)=>i?face.lineTo(x,y):face.moveTo(x,y));
-   for(const [x,y] of [...path].reverse())face.lineTo(x+3,y+37);
-   face.closePath();g.fillStyle=paint;g.fill(face);g.lineWidth=2.5;g.strokeStyle=black;g.stroke(face);
-   stroke(g,path,black,22);stroke(g,path,paint,17);
-   g.save();g.clip(face);
-   if(im.naturalWidth){for(let x=180;x<840;x+=146)for(let y=45;y<445;y+=69)
-     g.drawImage(im,im.width*.015,im.height*.26,im.width*.25,im.height*.32,x,y,146,69);}
-   else for(let x=200;x<850;x+=29)stroke(g,[[x,420],[x+140,40]],highlight,4);
+   const ys=path.map(p=>p[1]),metal=g.createLinearGradient(0,Math.min(...ys)-12,0,Math.max(...ys)+4);
+   metal.addColorStop(0,'#fff9e6');metal.addColorStop(.16,art.steel);metal.addColorStop(.55,t===themes[0]?'#4b3528':'#4b5056');metal.addColorStop(1,t===themes[0]?'#a87b51':'#b9c0bf');
+   const capPaths=[];let run=[];
+   if(Math.hypot(path[0][0]-path.at(-1)[0],path[0][1]-path.at(-1)[1])<1)capPaths.push(path);
+   else{
+     for(let i=1;i<path.length;i++){
+       const a=path[i-1],b=path[i];
+       if(Math.abs(b[0]-a[0])<Math.abs(b[1]-a[1])*.65){if(run.length>1)capPaths.push(run);run=[]}
+       else{if(!run.length)run.push(a);run.push(b)}
+     }
+     if(run.length>1)capPaths.push(run);
+   }
+   for(const cap of capPaths){g.save();g.translate(0,-7);stroke(g,cap,'#17191d',9);stroke(g,cap,metal,5.8);g.translate(0,-2);stroke(g,cap,t===themes[0]?'#f8e2bf':'#f8f5e7',1.2);g.restore()}
+   let carry=0;
+   g.save();
+   // Rivets sit just below the metal strip, on the painted front panels.
+   for(let i=1;i<path.length;i++){
+     const a=path[i-1],b=path[i],length=Math.hypot(b[0]-a[0],b[1]-a[1]);
+     for(let d=55-carry;d<length;d+=55){const ratio=d/length,px=a[0]+(b[0]-a[0])*ratio,py=a[1]+(b[1]-a[1])*ratio+8;if(fronts.some(face=>g.isPointInPath(face,px,py,'evenodd'))){circle(g,px,py,1.8,'#20252a');circle(g,px-.4,py-.5,.6,'#c0c5c1')}}
+     carry=(carry+length)%55;
+   }
    g.restore();
-   g.save();g.translate(0,-7);stroke(g,path,black,6);stroke(g,path,'#fff1cd',3.5);g.restore();
- }
- // Bolted supports carry the bottom stroke down to the concrete slab.
- const base=t.paths.at(-1);
- for(const x of [455,610]){
-   const supports=base.slice(1).map((b,i)=>[base[i],b]).filter(([a,b])=>x>=Math.min(a[0],b[0])&&x<=Math.max(a[0],b[0])&&a[0]!==b[0]);
-   if(!supports.length)continue;
-   const y=Math.max(...supports.map(([a,b])=>a[1]+(x-a[0])*(b[1]-a[1])/(b[0]-a[0])))+37;
-   if(y<427){g.fillStyle=black;g.fillRect(x,y,9,427-y);g.fillRect(x-5,426,19,3)}
  }
  g.restore();
 }
-function paintCard(g,t){
- g.clearRect(0,0,440,510);
- g.fillStyle='#343b36';g.fillRect(200,24,40,32);
- g.save();g.translate(220,265);g.rotate(Math.PI/2);
- drawHeldDeck(0,0,.98,g,t);g.restore();
+let selectedTheme=null,heldWrist=null,previewStartedAt=null,lobbyPerson=null;
+let reach=null,rackHeight=.28,rackCalibrated=false;
+let lobbyStatus='카메라를 준비하고 있습니다. Chrome에서 카메라 사용을 허용해 주세요.';
+function chooseBoard(t,wrist=null){
+ if(t===selectedTheme)return;
+ selectedTheme=t;theme=t;heldWrist=wrist;previewStartedAt=null;reach=null;
+ countdownPanel.hidden=false;startRide.hidden=false;chooseAgain.hidden=false;
+ countdownNumber.textContent='5';countdownProgress.value=0;
+ countdownText.textContent='5초 후 타는 법을 배우러 이동합니다.';
+ [...cards.children].forEach((button,i)=>button.setAttribute('aria-pressed',String(themes[i]===t)));
 }
-let selectedTheme=null;
-function chooseBoard(t){
- selectedTheme=t;theme=t;active=false;menu.hidden=true;selection.hidden=false;
- choiceHint.textContent='선택한 '+t.word+' 보드예요. 웹캠을 켜고 손을 허벅지 옆으로 내려 주세요.';
- choiceCamera.textContent=cam.srcObject?'웹캠 끄기':'웹캠 켜기';
+function clearBoard(){
+ selectedTheme=null;heldWrist=null;previewStartedAt=null;reach=null;
+ countdownPanel.hidden=true;startRide.hidden=true;chooseAgain.hidden=true;
+ [...cards.children].forEach(button=>button.setAttribute('aria-pressed','false'));
 }
-function drawSelection(){
- const g=holding.getContext('2d'),w=holding.width,h=holding.height;
- g.fillStyle='#a89d87';g.fillRect(0,0,w,h);
- for(let y=0;y<h;y+=60){g.fillStyle='#8c8270';g.fillRect(0,y,w,2)}
- g.fillStyle='#736b60';g.fillRect(0,h*.85,w,h*.15);
- let hx=w*.43,hy=h*.43,scale=.65;
- if(finishPerson&&performance.now()-finishPerson.time<750){
- const p=finishPerson.points,iw=personCutout.width,ih=personCutout.height;
- const feet=Math.max(...[27,28,29,30,31,32].filter(i=>p[i].visibility>.4).map(i=>p[i].y));
- const top=Math.max(0,p[0].y-.1),bodyHeight=Math.max(.3,feet-top)*ih;
- const ratio=h*.88/bodyHeight,cx=(p[23].x+p[24].x)*iw/2;
- const ox=w*.54+cx*ratio,oy=h*.95-feet*ih*ratio;
- const place=()=>{g.translate(ox,oy);g.scale(-ratio,ratio)};
- g.save();place();g.drawImage(personCutout,0,0);g.restore();
- const wrists=[15,16].filter(i=>p[i].visibility>.5);
- if(!wrists.length){choiceHint.textContent='보드를 들 손을 카메라에 보여 주세요.';return}
- const wrist=wrists.sort((a,b)=>p[b].visibility-p[a].visibility)[0],hand=p[wrist];
- hx=ox-hand.x*iw*ratio;hy=oy+hand.y*ih*ratio;
- scale=Math.min(h*.53/436,(h*.95-hy)/436);
- scale=Math.max(.15,scale);
- g.save();g.translate(hx-28*scale,hy+205*scale);g.rotate(Math.PI/2+.07);drawHeldDeck(0,0,scale,g);g.restore();
- drawForegroundArm(p,wrist,iw,ih);g.save();place();g.drawImage(armCutout,0,0);g.restore();
+function setStage(next){
+ stage=next;menu.hidden=next!==1;lesson.hidden=next!==2;ride.hidden=next!==3;studio.hidden=next!==4;back.hidden=next===1;
+ [stepShop,stepLearn,stepPark,stepStudio].forEach((item,i)=>item.setAttribute('aria-current',i+1===next?'step':'false'));
+}
+function beginRide(){
+ if(!selectedTheme)return;
+ previewStartedAt=null;reach=null;active=false;resetMotion(true);
+ learning={jump:false,stance:false,stanceSince:null,goAt:null};learnJump.setAttribute('data-done','false');learnStance.setAttribute('data-done','false');setStage(2);
+}
+function isWideStance(points){
+ if(!points||![23,24,27,28].every(i=>points[i]?.visibility>(i>=27?.25:.3)&&points[i].x>=0&&points[i].x<=1&&points[i].y>=0&&points[i].y<=1))return false;
+ const aspect=(cam.videoWidth||640)/(cam.videoHeight||480);
+ const distance=(a,b)=>Math.hypot((points[a].x-points[b].x)*aspect,points[a].y-points[b].y);
+ const legLength=(distance(23,27)+distance(24,28))/2,hipWidth=Math.abs(points[23].x-points[24].x)*aspect;
+ const footWidth=Math.abs(points[27].x-points[28].x)*aspect;
+ return legLength>.12&&footWidth>=Math.max(.04,hipWidth*1.3,legLength*.35);
+}
+function updateStance(points,now){
+ const wide=isWideStance(points);
+ if(stage===2&&learning.jump&&!learning.stance){
+   if(wide){learning.stanceSince??=now;if(now-learning.stanceSince>=500){learning.stance=true;learnStance.setAttribute('data-done','true');learning.goAt=now+2000}}
+   else learning.stanceSince=null;
+ }
+ if(stage===3&&wide&&!finished&&rider?.line&&now-lastStancePush>=450){propel();lastStancePush=now}
+ return wide;
+}
+function previewPerson(g,canvas,now,center=.5){
+ const person=lobbyPerson&&now-lobbyPerson.time>=0&&now-lobbyPerson.time<750?lobbyPerson:null;
+ const iw=personCutout.width,ih=personCutout.height,scale=Math.min(canvas.height*.84/Math.max(1,ih),canvas.width*.8/Math.max(1,iw));
+ const ox=canvas.width*center+iw*scale/2,oy=canvas.height*.95-ih*scale;
+ if(person){g.save();g.translate(ox,oy);g.scale(-scale,scale);g.drawImage(personCutout,0,0);g.restore()}
+ return {person,point:p=>({x:ox-p.x*iw*scale,y:oy+p.y*ih*scale})};
+}
+function fitPreview(canvas){
+ const ratio=Math.min(window.devicePixelRatio||1,2),w=Math.round(canvas.clientWidth*ratio),h=Math.round(canvas.clientHeight*ratio);
+ if(w&&h&&(canvas.width!==w||canvas.height!==h)){canvas.width=w;canvas.height=h}
+}
+function drawLesson(now){
+ if(learning.goAt&&now>=learning.goAt){enter(selectedTheme);return}
+ fitPreview(lessonCanvas);const g=lessonCanvas.getContext('2d'),w=lessonCanvas.width,h=lessonCanvas.height;
+ g.fillStyle='#f9f2e1';g.fillRect(0,0,w,h);g.fillStyle='#ded4bc';g.fillRect(0,h*.93,w,h*.07);
+ const view=previewPerson(g,lessonCanvas,now);
+ if(view.person){
+   const p=view.person.points;
+   for(const chain of [[23,25,27],[24,26,28]])if(chain.every(i=>p[i].visibility>.35)){
+     const line=chain.map(i=>{const point=view.point(p[i]);return [point.x,point.y]});stroke(g,line,'#e99c20',Math.max(3,h*.008));
+     const foot=view.point(p[chain[2]]);g.strokeStyle=learning.jump?'#628a2b':'#d57a20';g.lineWidth=3;g.beginPath();g.arc(foot.x,foot.y,h*.035,0,Math.PI*2);g.stroke();
+     g.font='bold '+Math.max(24,h*.06)+'px sans-serif';g.textAlign='center';g.fillStyle='#a45a16';
+     if(!learning.jump)g.fillText('↑',foot.x,foot.y-h*.06);
+     else if(!learning.stance){const direction=p[chain[2]].x<(p[27].x+p[28].x)/2?1:-1;g.fillText(direction>0?'→':'←',foot.x+direction*h*.08,foot.y)}
+   }
  }else{
- g.save();g.translate(w*.54,h*.92);
- stroke(g,[[-27,-160],[-30,0]],'#242c33',45);stroke(g,[[28,-160],[35,0]],'#242c33',45);
- stroke(g,[[0,-322],[0,-163]],'#eee7d5',100);circle(g,0,-375,34,'#bd8a67');
- stroke(g,[[-48,-295],[-82,-205]],'#eee7d5',28);
- g.restore();
- hx=w*.54-82;hy=h*.92-205;
- g.save();g.translate(hx-20,hy+135);g.rotate(Math.PI/2+.07);drawHeldDeck(0,0,.65,g);g.restore();
- circle(g,hx,hy,12,'#bd8a67');
+   const lift=learning.jump?0:Math.max(0,Math.sin(now/350))*h*.13,x=w*.5,y=h*.86-lift,s=h/500,spread=learning.jump?35+35*(1+Math.sin(now/500))/2:35;
+   g.save();g.translate(x,y);g.scale(s,s);circle(g,0,-300,30,'#b9805c');stroke(g,[[0,-260],[0,-140]],'#2c7387',65);stroke(g,[[-20,-140],[-spread,-10]],'#263b4d',25);stroke(g,[[20,-140],[spread,-10]],'#263b4d',25);stroke(g,[[-30,-245],[-80,-185]],'#2c7387',19);stroke(g,[[30,-245],[80,-185]],'#2c7387',19);g.restore();
  }
+ lessonStatus.textContent=learning.goAt?'준비 끝! '+Math.max(1,Math.ceil((learning.goAt-now)/1000))+'초 후 파크로 이동합니다.':!view.person?'몸 전체와 양쪽 발목이 카메라에 보이도록 서 주세요.':!learning.jump?(motion.ground?'두 발을 함께 가볍게 띄워 보세요!':'양발을 바닥에 두고 잠깐 서 주세요.'):'알리 성공! 이제 두 발을 어깨너비로 벌리고 잠깐 서 보세요.';
 }
-startRide.onclick=()=>{selection.hidden=true;enter(selectedTheme)};
-chooseAgain.onclick=()=>{selection.hidden=true;menu.hidden=false;selectedTheme=null;cards.firstChild.focus()};
-choiceCamera.onclick=async()=>{const task=camera.onclick();choiceCamera.disabled=true;setTimeout(()=>{choiceCamera.disabled=false;choiceCamera.textContent=cam.srcObject?'웹캠 끄기':'웹캠 켜기'},1200);await task};
+function openStudio(){
+ active=false;setStage(4);studioLabel.textContent='내가 고른 ‘'+theme.word+'’ 데크';
+}
+function drawStudio(now){
+ fitPreview(studioCanvas);const g=studioCanvas.getContext('2d'),w=studioCanvas.width,h=studioCanvas.height;
+ g.fillStyle='#eee4cb';g.fillRect(0,0,w,h);if(shopWall.naturalWidth)cover(g,shopWall,0,0,w,h);
+ previewPerson(g,studioCanvas,now,.37);
+ g.save();g.translate(w*.78,h*.52);g.rotate(Math.PI/2);drawHeldDeck(0,0,h*.62/436,g,theme);g.restore();
+}
+function lobbyLayout(w,h){
+ const iw=cam.videoWidth||640,ih=cam.videoHeight||480;
+ const ratio=Math.min(w*.9/iw,h*.68/ih),ox=(w+iw*ratio)/2,oy=h*.98-ih*ratio;
+ return {iw,ih,ratio,ox,oy,point:p=>({x:ox-p.x*iw*ratio,y:oy+p.y*ih*ratio})};
+}
+function rackBoards(w,h){
+ return themes.map((t,i)=>({t,x:w*(.28+i*.22),y:h*rackHeight,size:h*.24/436,width:h*.24*deckWidth/436,length:h*.24}));
+}
+function updateReach(hands,boards,now){
+ const candidates=hands.flatMap(hand=>boards.filter(b=>b.t!==selectedTheme&&Math.abs(hand.x-b.x)<b.width/2+holding.height*.045&&Math.abs(hand.y-b.y)<b.length/2+holding.height*.025).map(board=>({board,hand,distance:Math.hypot(hand.x-board.x,hand.y-board.y)}))).sort((a,b)=>a.distance-b.distance);
+ const candidate=candidates[0];
+ if(!candidate){reach=null;return}
+ if(!reach||reach.theme!==candidate.board.t||reach.wrist!==candidate.hand.wrist){reach={theme:candidate.board.t,wrist:candidate.hand.wrist,since:now}}
+ if(now-reach.since>=550)chooseBoard(candidate.board.t,candidate.hand.wrist);
+}
+function updateCountdown(now,ready){
+ if(!selectedTheme)return;
+ if(!ready){
+ previewStartedAt=null;countdownProgress.value=0;countdownNumber.textContent='5';
+ countdownText.textContent='손이 보이면 5초 후 타는 법을 배우러 이동합니다.';return;
+ }
+ previewStartedAt??=now;
+ const elapsed=Math.max(0,(now-previewStartedAt)/1000),seconds=Math.max(0,Math.ceil(5-elapsed));
+ countdownNumber.textContent=String(seconds);countdownProgress.value=Math.min(5,elapsed);
+ countdownText.textContent=seconds+'초 후 타는 법을 배우러 이동합니다.';
+ if(elapsed>=5)beginRide();
+}
+function drawSelection(now){
+ const g=holding.getContext('2d'),w=holding.width,h=holding.height;
+ g.fillStyle='#b4a78d';g.fillRect(0,0,w,h);
+ if(shopWall.naturalWidth)cover(g,shopWall,0,0,w,h);
+ const layout=lobbyLayout(w,h),person=lobbyPerson&&now-lobbyPerson.time<750?lobbyPerson:null;
+ if(person&&!rackCalibrated){rackHeight=Math.max(.28,Math.min(.34,layout.point(person.points[0]).y/h-.18));rackCalibrated=true}
+ document.querySelector('.lobby-heading').style.top=Math.max(.02,rackHeight-.24)*100+'%';
+ const boards=rackBoards(w,h);
+ const hands=person?[15,16].filter(i=>person.points[i].visibility>.55&&person.points[i].x>0&&person.points[i].x<1&&person.points[i].y>0&&person.points[i].y<1).map(wrist=>{
+   const tip=person.points[wrist+4],p=tip.visibility>.55?tip:person.points[wrist];return {...layout.point(p),wrist};
+ }):[];
+ if(!document.hidden)updateReach(hands,boards,now);else reach=null;
+ boards.forEach((b,i)=>{
+   const button=cards.children[i];button.style.left=b.x/w*100+'%';button.style.top=b.y/h*100+'%';button.style.width=(b.width+h*.09)/w*100+'%';button.style.height=(b.length+h*.05)/h*100+'%';
+   const nearby=reach?.theme===b.t;
+   g.save();g.translate(b.x,b.y);g.globalAlpha=b.t===selectedTheme ? .18 : 1;
+   g.fillStyle='#4e5045';g.fillRect(-b.width*.26,-b.length*.58,b.width*.52,h*.035);
+   if(nearby){g.shadowColor='#ffce51';g.shadowBlur=h*.04}
+   g.save();g.rotate(Math.PI/2);drawHeldDeck(0,0,b.size,g,b.t);g.restore();g.shadowBlur=0;
+   g.fillStyle='#fff2d6';g.fillRect(-h*.055,b.length*.58,h*.11,h*.052);
+   g.fillStyle='#211e1b';g.textAlign='center';g.font='bold '+h*.034+'px sans-serif';g.fillText(b.t.word,0,b.length*.58+h*.039);
+   if(nearby){g.fillStyle='#ffce51';g.fillRect(-b.width/2,b.length*.53,b.width*Math.min(1,(now-reach.since)/550),h*.01)}
+   g.restore();
+ });
+ const place=()=>{g.translate(layout.ox,layout.oy);g.scale(-layout.ratio,layout.ratio)};
+ if(person){g.save();place();g.drawImage(personCutout,0,0);g.restore()}
+ let hand=null;
+ if(selectedTheme&&person){
+   if(!hands.some(item=>item.wrist===heldWrist))heldWrist=hands[0]?.wrist??null;
+   if(heldWrist!==null){
+     hand=layout.point(person.points[heldWrist]);
+     const size=Math.max(h*.10/436,Math.min(h*.30/436,(h*.97-hand.y)/(436*.72)));
+     const halfWidth=deckWidth*size/2;
+     const hx=Math.max(halfWidth,Math.min(w-halfWidth,hand.x-deckWidth*.32*size)),hy=Math.max(220*size,Math.min(h-220*size,hand.y+436*size*.22));
+     g.save();g.translate(hx,hy);g.rotate(Math.PI/2);drawHeldDeck(0,0,size,g,selectedTheme);g.restore();
+     drawForegroundArm(person.points,heldWrist,layout.iw,layout.ih);g.save();place();g.drawImage(armCutout,0,0);g.restore();
+   }
+ }
+ hands.forEach(item=>{g.save();g.strokeStyle=reach?.wrist===item.wrist?'#ffce51':'#fff2d6';g.lineWidth=h*.004;g.beginPath();g.arc(item.x,item.y,h*.016,0,Math.PI*2);g.stroke();g.restore()});
+ choiceHint.textContent=selectedTheme?(person&&hand?'‘'+selectedTheme.word+'’ 보드를 손에 들어 보세요. 다른 보드에 손을 가져가면 바꿀 수 있어요.':'얼굴과 보드를 들 손이 카메라에 보이도록 서 주세요.'):(person?'마음에 드는 보드에 손을 가까이 대고 잠깐 기다려 주세요.':lobbyStatus);
+ countdownPanel.style.left=hand&&hand.x<w/2?'auto':'18px';countdownPanel.style.right=hand&&hand.x<w/2?'18px':'auto';
+ updateCountdown(now,!!person&&!!hand&&!document.hidden);
+}
+function fitLobby(){
+ const ratio=Math.min(window.devicePixelRatio||1,2),w=Math.round(holding.clientWidth*ratio),h=Math.round(holding.clientHeight*ratio);
+ if(w&&h&&(holding.width!==w||holding.height!==h)){holding.width=w;holding.height=h;reach=null}
+}
+new ResizeObserver(fitLobby).observe(holding);
+document.addEventListener('visibilitychange',()=>{previewStartedAt=null;reach=null});
+startRide.onclick=beginRide;chooseAgain.onclick=clearBoard;
+choiceCamera.onclick=()=>{void camera.onclick()};
 themes.forEach(t=>{
- const btn=document.createElement('button');btn.className='card';btn.innerHTML='<canvas width="440" height="510" aria-hidden="true"></canvas><span>'+t.parts+'<b>↗</b></span>';
- btn.onclick=()=>chooseBoard(t);cards.append(btn);paintCard(btn.firstChild.getContext('2d'),t);
+ const btn=document.createElement('button');btn.className='card';btn.innerHTML='<span>'+t.word+' 보드 선택</span>';btn.setAttribute('aria-pressed','false');
+ btn.onclick=()=>chooseBoard(t);cards.append(btn);
 });
-prints.forEach((im,i)=>{im.onload=()=>{themes.forEach((t,k)=>paintCard(cards.children[k].firstChild.getContext('2d'),t));if(active){const g=wall.getContext('2d');landscape(g,theme);course(g,theme)}};im.src='park-print-'+(i+1)+'.jpg'});
 function tone(freq,end,duration,type='triangle',volume=.16){
  if(!audio)return;const t=audio.currentTime,o=audio.createOscillator(),a=audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(end,t+duration);a.gain.setValueAtTime(volume,t);a.gain.exponentialRampToValueAtTime(.001,t+duration);o.connect(a).connect(audio.destination);o.start(t);o.stop(t+duration);
 }
@@ -204,27 +424,30 @@ function resetRide(){
 }
 const wall=document.createElement('canvas');
 wall.width=scene.width;wall.height=scene.height;
+function paintWall(t){const g=wall.getContext('2d');g.clearRect(0,0,wall.width,wall.height);landscape(g,t);course(g,t)}
 function enter(t){
+ setStage(3);lastStancePush=-Infinity;
+ resetMotion(true);
  wall.width=t===themes[0]?1080:1720;wall.height=450;
- const mural=wall.getContext('2d');landscape(mural,t);course(mural,t);
+ paintWall(t);
  theme=t;rails=[];t.paths.forEach((path,k)=>path.slice(1).forEach((b,i)=>{let a=path[i];if(Math.abs(b[0]-a[0])<Math.abs(b[1]-a[1])*.65)return;if(a[0]>b[0])[a,b]=[b,a];rails.push({a,b,path:k})}));
  finished=false;again.hidden=true;goal=t===themes[1]?1490:t===themes[2]?1495:Math.max(...rails.map(l=>l.b[0]))-20;resetRide();active=true;menu.hidden=true;ride.hidden=false;back.hidden=false;title.textContent=t.word;msg.textContent=hint;
  audio??=new AudioContext();audio.resume().catch(()=>{});last=performance.now();push.focus();
 }
-function propel(){if(!active||!rider.line)return;rider.vx=Math.min(410,rider.vx+155);tone(190,54,.12,'sawtooth',.06);if(theme===themes[2])fish.push({x:rider.x,y:rider.y,t:0})}
-function jump(){if(!active||!rider.line)return;rider.line=null;rider.vy=theme===themes[1]?-423:-475;rider.vx=Math.max(240,rider.vx);tone(1320,175,.08)}
+function propel(){if(!active||finished||!rider.line)return;rider.vx=Math.min(300,rider.vx+110);tone(190,54,.12,'sawtooth',.06);if(theme===themes[2])fish.push({x:rider.x,y:rider.y,t:0})}
+function jump(){if(!active||finished||!rider.line)return;rider.line=null;rider.vy=theme===themes[1]?-423:-475;rider.vx=Math.max(240,rider.vx);tone(1320,175,.08)}
 push.onclick=propel;ollie.onclick=jump;
 addEventListener('keydown',e=>{if(!active||!['Space','ArrowRight'].includes(e.code))return;if(e.code==='Space'&&[camera,back].includes(document.activeElement))return;e.preventDefault();if(!e.repeat)(e.code==='Space'?jump:propel)()});
 function step(dt){
  if(finished)return;
  const r=rider,oldY=r.y;r.x+=r.vx*dt;r.vx=Math.max(0,r.vx-(r.line?90:16)*dt);
- while(r.line&&r.x>r.line.b[0]){const prev=r.line;r.line=rails.find(l=>l.path===prev.path&&Math.abs(l.a[0]-prev.b[0])<.001&&Math.abs(l.a[1]-prev.b[1])<.001&&l.b[0]>prev.b[0])}
+ while(r.line&&r.x>r.line.b[0]){const prev=r.line;r.line=rails.find(l=>(l.path===prev.path||theme===themes[0])&&Math.abs(l.a[0]-prev.b[0])<.001&&Math.abs(l.a[1]-prev.b[1])<.001&&l.b[0]>prev.b[0])}
  if(r.line)r.y=height(r.line,r.x);
  if(!r.line){r.vy+=(theme===themes[1]?700:960)*dt;r.y+=r.vy*dt;
  if(r.vy>=0){const hit=rails.filter(l=>r.x>=l.a[0]&&r.x<=l.b[0]&&oldY<=height(l,r.x)+1&&r.y>=height(l,r.x)).sort((a,b)=>height(a,r.x)-height(b,r.x))[0];
  if(hit){r.line=hit;r.y=height(hit,r.x);r.vy=0;flash=.3;tone(theme===themes[0]?700:140,theme===themes[0]?290:40,.22)}}}
  if(r.line&&r.vx>30){bank+=r.vx*dt;if(bank>46){bank=0;tone(79,40,.04,'triangle',.045)}}
- if(r.x>=goal&&r.line){finished=true;finishedAt=performance.now();r.vx=0;again.hidden=false;msg.textContent=theme.word+' 완주! 데크에 그래피티를 남겼어요.'}else if(r.y>500||r.x>wall.width){resetRide();msg.textContent='다시 출발해요. 획 끝에 닿기 전에 알리!'}
+ if(r.x>=goal&&r.line){finished=true;finishedAt=performance.now();r.vx=0;again.hidden=false;msg.textContent=theme.word+' 완주! 멋진 라이딩이었어요.';openStudio()}else if(r.y>500||r.x>wall.width){resetRide();msg.textContent='다시 출발해요. 획 끝에 닿기 전에 알리!'}
  flash=Math.max(0,flash-dt);fish.forEach(f=>f.t+=dt);fish=fish.filter(f=>f.t<1);
 }
 function fitScene(){
@@ -234,17 +457,14 @@ function fitScene(){
 }
 new ResizeObserver(fitScene).observe(scene);
 function drawHeldDeck(x,y,size,g=ctx,deckTheme=theme){
- const ctx=g,theme=deckTheme;
- ctx.save();ctx.translate(x,y);ctx.scale(size,size);ctx.rotate(.035);
- ctx.beginPath();ctx.roundRect(-218,-47,436,94,44);ctx.fillStyle='#ecd2a0';ctx.fill();ctx.lineWidth=4;ctx.strokeStyle='#20252b';ctx.stroke();
- ctx.save();ctx.clip();const print=printFor(theme);
- if(print.naturalWidth)ctx.drawImage(print,0,0,print.width,print.height,-220,-95,440,195);
- ctx.fillStyle='#09222b88';ctx.fillRect(-220,-47,440,94);
- const t=Math.min(1,(performance.now()-finishedAt)/650);
- ctx.save();ctx.scale(.65+.35*t,.65+.35*t);ctx.rotate(-.08);ctx.font='italic 900 85px Malgun Gothic,sans-serif';ctx.textAlign='center';ctx.lineJoin='round';
- ctx.lineWidth=12;ctx.strokeStyle='#17212a';ctx.strokeText(theme.word,0,30);ctx.lineWidth=5;ctx.strokeStyle='#fff3ce';ctx.strokeText(theme.word,0,30);ctx.fillStyle=palette(theme)[2];ctx.fillText(theme.word,0,30);ctx.restore();ctx.restore();
- for(const x of [-135,135]){ctx.fillStyle='#c4cbca';ctx.fillRect(x-8,-24,16,48);ctx.fillStyle='#444a4d';ctx.fillRect(x-15,-12,30,24)}
- ctx.restore();
+ const art=deckArt.get(deckTheme),[bx,by,bw,bh]=art.bounds;
+ g.save();g.translate(x,y);g.scale(size,size);g.rotate(-Math.PI/2);
+ // Fit every design to the same deck length and width.
+ g.scale(deckWidth/bw,436/bh);g.translate(-bx-bw/2,-by-bh/2);
+ g.clip(art.clip);
+ g.fillStyle='#ecd2a0';g.fillRect(bx,by,bw,bh);
+ if(art.image.naturalWidth)g.drawImage(art.image,0,0);
+ g.restore();
 }
 function drawFinish(){
  ctx.setTransform(1,0,0,1,0,0);
@@ -283,6 +503,22 @@ function drawFinish(){
  }
 }
 again.onclick=()=>enter(theme);
+function drawLiveRider(){
+ const person=lobbyPerson;
+ if(!person||performance.now()-person.time>=750)return false;
+ const p=person.points,iw=personCutout.width,ih=personCutout.height;
+ if(!iw||!ih)return false;
+ const feet=[27,28,29,30,31,32].map(i=>p[i]).filter(point=>point.visibility>.4&&point.x>=0&&point.x<=1&&point.y>0&&point.y<=1);
+ const hips=[p[23],p[24]].filter(point=>point.visibility>.4&&point.x>=0&&point.x<=1);
+ const anchors=feet.length?feet:hips.length?hips:[p[0]];
+ const anchorX=anchors.reduce((sum,point)=>sum+point.x,0)/anchors.length;
+ const bottom=feet.length?Math.max(...feet.map(point=>point.y)):1;
+ const top=Math.max(0,p[0].y-.13),scale=140/(Math.max(.25,bottom-top)*ih);
+ // The same masked camera image used in the lobby rides with the board.
+ // Keep the lowest visible foot on the deck, in the rider's local coordinates.
+ ctx.save();ctx.translate(anchorX*iw*scale,-bottom*ih*scale-9);ctx.scale(-scale,scale);
+ ctx.drawImage(personCutout,0,0);ctx.restore();return true;
+}
 function draw(){
  if(finished){drawFinish();return}
 
@@ -300,16 +536,31 @@ function draw(){
  const {x,y,line}=rider;ctx.save();ctx.translate(x,y);ctx.lineCap='round';
  if(line&&theme!==themes[0])ctx.rotate(Math.atan2(line.b[1]-line.a[1],line.b[0]-line.a[0]));
  if(flash){ctx.save();ctx.globalAlpha=Math.min(1,flash*6);for(const dir of [-1,1])for(let i=0;i<3;i++)stroke(ctx,[[dir*(32+i*4),-7+i*5],[dir*(48+i*8),-23+i*12]],black,3);ctx.restore()}
- {
+ if(!drawLiveRider()){
  const h=bent||!line?10:0;stroke(ctx,[[-4,-40+h],[-16,-26],[-13,-10]],'#25282b',9);stroke(ctx,[[0,-40+h],[13,-24],[15,-10]],'#303640',10);
  stroke(ctx,[[-4,-61+h],[-3,-41+h]],'#f1e28a',19);stroke(ctx,[[0,-58+h],[12,-49+h],[22,-55+h]],'#242923',6);
  circle(ctx,0,-80+h,15,'#ad7857');
  stroke(ctx,[[-13,-92+h],[13,-93+h]],'#212924',5)}
- stroke(ctx,[[-36,-9],[-27,-6],[27,-6],[37.5,-10]],'#242723',4);circle(ctx,-21,-2,3,'#191e18');circle(ctx,21,-2,3,'#191e18');ctx.restore();
+ if(!line){ctx.save();ctx.translate(0,-5);ctx.rotate(-.12);ctx.scale(1,.65);drawHeldDeck(0,0,.17);ctx.restore()}
+ else stroke(ctx,[[-36,-9],[-27,-6],[27,-6],[37.5,-10]],'#242723',4);
+ circle(ctx,-21,-2,3,'#191e18');circle(ctx,21,-2,3,'#191e18');ctx.restore();
 }
-function frame(now){if(!selection.hidden)drawSelection();else if(active){step(Math.min(.034,(now-last)/1000));draw()}last=now;requestAnimationFrame(frame)}requestAnimationFrame(frame);
+function frame(now){
+ try{
+ if(stage===1)drawSelection(now);
+ else if(stage===2)drawLesson(now);
+ else if(stage===3&&active){step(Math.min(.034,(now-last)/1000)*gamePace);if(stage===3)draw()}
+ else if(stage===4)drawStudio(now);
+ }finally{last=now;requestAnimationFrame(frame)}
+}requestAnimationFrame(frame);
 const base='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
-let stream=null,session=0,model,lastDeep=0,extended=false,webcamBackdrop=null;
+let stream=null,session=0,model,webcamBackdrop=null;
+let motion;
+function resetMotion(keepGround=false){
+ const ground=keepGround?motion?.ground:null;
+ motion={ground,candidate:null,floorShift:null,lastSeen:null,lastFeetSeen:null,hips:[],lifts:[null,null],armed:false,groundedSince:null};bent=false;
+}
+resetMotion();
 function makeRoomBackground(){
   const canvas=document.createElement('canvas');
   canvas.width=Math.min(cam.videoWidth,480);
@@ -370,47 +621,99 @@ function drawForegroundArm(points,wrist,width,height){
 let finishPerson=null;
 function updateFinishPerson(result){
  const p=result.poseLandmarks;
- if(!p||!result.segmentationMask||p[0].visibility<.5||![27,28,29,30,31,32].some(i=>p[i].visibility>.4))return;
+ if(!p||!result.segmentationMask||p[0].visibility<.5){lobbyPerson=null;return}
  const width=cam.videoWidth,height=cam.videoHeight;if(!width||!height)return;
  if(personCutout.width!==width||personCutout.height!==height){personCutout.width=width;personCutout.height=height}
  personBrush.clearRect(0,0,width,height);personBrush.drawImage(result.image,0,0,width,height);
  personBrush.globalCompositeOperation='destination-in';personBrush.drawImage(result.segmentationMask,0,0,width,height);personBrush.globalCompositeOperation='source-over';
- finishPerson={points:p,time:performance.now()};
+ lobbyPerson={points:p,time:performance.now()};
+ if([27,28,29,30,31,32].some(i=>p[i].visibility>.4))finishPerson=lobbyPerson;
 }
-function measure(points){
- if(!points){bent=false;extended=false;return false}
+function measure(points,allowActions=true){
+ const now=performance.now();
+ if(!points){motion.armed=false;motion.groundedSince=null;motion.lifts=[null,null];bent=false;return false}
+ const visible=(i,confidence=.4)=>points[i]&&points[i].visibility>confidence&&points[i].x>=0&&points[i].x<=1&&points[i].y>=0&&points[i].y<=1;
+ if(motion.lastSeen!==null&&now-motion.lastSeen>600)resetMotion();
  const angle=(a,b,c)=>{
  const dx=(points[a].x-points[b].x)*cam.videoWidth,dy=(points[a].y-points[b].y)*cam.videoHeight;
  const ex=(points[c].x-points[b].x)*cam.videoWidth,ey=(points[c].y-points[b].y)*cam.videoHeight;
  return Math.acos(Math.max(-1,Math.min(1,(dx*ex+dy*ey)/(Math.hypot(dx,dy)*Math.hypot(ex,ey)))))*180/Math.PI};
- const legs=[[23,25,27],[24,26,28]].filter(ids=>ids.every(i=>points[i].visibility>.55));
- if(!legs.length){bent=false;extended=false;return false}
- const knee=legs.reduce((n,ids)=>n+angle(...ids),0)/legs.length,t=performance.now();
-  const legLength=Math.max(.12,Math.abs((points[27].y+points[28].y-points[23].y-points[24].y)/2));
- const stride=Math.abs(points[27].x-points[28].x)*cam.videoWidth/(legLength*cam.videoHeight);
- if(legs.length===2&&knee>143){
- if(stride>.48)extended=true;
- if(extended&&stride<.28){extended=false;propel()}
- }else extended=false;
- if(knee<142){bent=true;lastDeep=t}
- if(bent&&knee>160){if(t-lastDeep<350)jump();bent=false}
+ const legs=[[23,25,27],[24,26,28]].filter(ids=>ids.every(i=>visible(i,i>=27?.25:.4))&&Number.isFinite(angle(...ids)));
+ if(!legs.length){motion.armed=false;bent=false;return false}
+ motion.lastSeen=now;
+ const aspect=cam.videoWidth/cam.videoHeight;
+ const distance=(a,b)=>Math.hypot((points[a].x-points[b].x)*aspect,points[a].y-points[b].y);
+ const scale=Math.max(.18,legs.reduce((sum,ids)=>sum+distance(ids[0],ids[1])+distance(ids[1],ids[2]),0)/legs.length);
+ const hipY=legs.reduce((sum,ids)=>sum+points[ids[0]].y,0)/legs.length;
+ motion.hips.push({time:now,y:hipY});motion.hips=motion.hips.filter(sample=>now-sample.time<450);
+ bent=legs.some(ids=>angle(...ids)<150);
+ const feet=[[27,29,31],[28,30,32]].map(ids=>({ankle:ids[0],contacts:ids.slice(1).filter(i=>visible(i))}));
+ // Toes may be hidden. Both ankles are still required.
+ const bothVisible=feet.every(foot=>visible(foot.ankle,.25));
+ let bothLifted=false;
+ if(bothVisible){
+   motion.lastFeetSeen=now;
+   const ids=feet.flatMap(foot=>[foot.ankle,...foot.contacts]);
+   const floor=feet.map(foot=>points[foot.ankle].y);
+   if(!motion.ground){
+     if(!motion.candidate||floor.some((y,i)=>Math.abs(y-motion.candidate.floor[i])>Math.max(.012,scale*.05))){
+       motion.candidate={since:now,floor,positions:Object.fromEntries(ids.map(i=>[i,points[i].y]))};
+     }else{
+       ids.forEach(i=>motion.candidate.positions[i]=(motion.candidate.positions[i]??points[i].y)*.8+points[i].y*.2);
+       if(now-motion.candidate.since>=300)motion.ground={...motion.candidate.positions};
+     }
+   }
+   if(motion.ground){
+     const lift=feet.map(foot=>{
+       const known=[foot.ankle,...foot.contacts].filter(i=>motion.ground[i]!==undefined);
+       return known.length?Math.min(...known.map(i=>motion.ground[i]-points[i].y)):0;
+     });
+     const threshold=Math.max(.007,scale*.025),landing=threshold*.55;
+     bothLifted=lift.every(value=>value>threshold);
+     lift.forEach((value,i)=>{if(value>threshold)motion.lifts[i]??=now;else if(value<landing)motion.lifts[i]=null});
+     if(lift.every(value=>value<landing)){
+       motion.groundedSince??=now;
+       if(now-motion.groundedSince>=80)motion.armed=true;
+       ids.forEach(i=>{motion.ground[i]=motion.ground[i]===undefined?points[i].y:Math.max(motion.ground[i]*.99+points[i].y*.01,points[i].y-scale*.02)});
+     }else motion.groundedSince=null;
+     const hipRising=Math.max(...motion.hips.map(sample=>sample.y))-hipY>scale*.008;
+     // A person can step farther from the camera between choosing and riding.
+     // Relearn a stable floor position instead of remaining stuck above the old one.
+     if(bothLifted&&!hipRising){
+       if(!motion.floorShift||floor.some((y,i)=>Math.abs(y-motion.floorShift.floor[i])>.012))motion.floorShift={since:now,floor};
+       else if(now-motion.floorShift.since>=600){motion.ground=Object.fromEntries(ids.map(i=>[i,points[i].y]));motion.lifts=[null,null];motion.armed=false;motion.groundedSince=now;motion.floorShift=null}
+     }else motion.floorShift=null;
+     // A short hop may appear in only one pose result on a slower PC.
+     // Require both feet and a rising body instead of two airborne frames.
+     if(bothLifted&&motion.armed&&hipRising&&motion.lifts.every(value=>value!==null)&&Math.abs(motion.lifts[0]-motion.lifts[1])<=250){
+       motion.armed=false;if(allowActions){if(stage===2){learning.jump=true;learnJump.setAttribute('data-done','true')}else if(stage===3)jump()}
+     }
+   }
+ }else{
+   motion.groundedSince=null;motion.floorShift=null;
+   if(motion.lastFeetSeen===null||now-motion.lastFeetSeen>250){motion.armed=false;motion.lifts=[null,null]}
+ }
  return true;
 }
-function stop(){session++;stream?.getTracks().forEach(t=>t.stop());stream=null;cam.srcObject=null;webcamBackdrop=null;finishPerson=null;cam.hidden=true;bent=false;extended=false;camera.textContent='내 몸으로 타기'}
+function stop(){session++;stream?.getTracks().forEach(t=>t.stop());stream=null;cam.srcObject=null;webcamBackdrop=null;finishPerson=null;lobbyPerson=null;previewStartedAt=null;reach=null;rackCalibrated=false;cam.hidden=true;resetMotion();camera.textContent='내 몸으로 타기';choiceCamera.textContent='웹캠 켜기';lobbyStatus='웹캠 켜기를 누르고 카메라 사용을 허용해 주세요.'}
 camera.onclick=async()=>{
+ if(camera.disabled)return;
  if(stream){stop();msg.textContent='카메라 꺼짐 · 스페이스바로 탈 수 있어요.';return}
- camera.disabled=true;const id=++session;
+ camera.disabled=true;choiceCamera.disabled=true;choiceCamera.textContent='웹캠 준비 중…';lobbyStatus='카메라를 준비하고 있습니다. Chrome에서 카메라 사용을 허용해 주세요.';const id=++session;
  try{
  const acquired=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
- if(id!==session){acquired.getTracks().forEach(t=>t.stop());return}stream=acquired;cam.srcObject=stream;cam.hidden=true;await cam.play();webcamBackdrop=makeRoomBackground();msg.textContent='동작 인식 도구를 불러오는 중…';
+ if(id!==session){acquired.getTracks().forEach(t=>t.stop());return}stream=acquired;cam.srcObject=stream;cam.hidden=true;await cam.play();webcamBackdrop=makeRoomBackground();lobbyStatus=msg.textContent='동작 인식 도구를 불러오는 중…';
  if(!window.Pose)await new Promise((ok,fail)=>{const s=document.createElement('script');s.src=base+'pose.js';s.onload=ok;s.onerror=fail;document.head.append(s)});
  if(id!==session)return;if(!model){model=new Pose({locateFile:file=>base+file});model.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:true,smoothSegmentation:true})}
- model.onResults(r=>{if(id!==session)return;webcamBackdrop?.userData.update(r);updateFinishPerson(r);const tracked=active?measure(r.poseLandmarks):false;if(!selection.hidden){choiceCamera.textContent="웹캠 끄기";choiceHint.textContent=finishPerson?"손에 든 보드를 확인하고 이 보드로 시작을 눌러 주세요.":msg.textContent;return}if(finished)return;msg.textContent=tracked?(bent?'지금 빠르게 펴세요!':'옆으로 서서 한 발을 뒤로 밀었다 모으세요. 무릎을 굽혔다 펴면 알리!'):'뒤로 물러나 발목까지 보여 주세요.'});
- camera.textContent='카메라 끄기';camera.disabled=false;
+ model.onResults(r=>{if(id!==session)return;updateFinishPerson(r);if(stage===1){measure(r.poseLandmarks,false);lobbyStatus='얼굴과 손이 보이도록 카메라 앞에 서 주세요.';return}if(stage===2){measure(r.poseLandmarks);updateStance(r.poseLandmarks,performance.now());return}if(stage===4||finished)return;webcamBackdrop?.userData.update(r);const tracked=active?measure(r.poseLandmarks):false;const wide=updateStance(r.poseLandmarks,performance.now());msg.textContent=tracked?(motion.lastFeetSeen===null||performance.now()-motion.lastFeetSeen>250?'양쪽 발목이 카메라에 보이도록 조금 뒤로 서 주세요.':motion.ground?(wide?'좋아요! 두 발을 벌리고 전진 중 · 두 발 함께 가볍게 뛰면 알리!':'두 발을 어깨너비로 벌려 보세요. 보드가 앞으로 갑니다.'):'양발을 바닥에 두고 잠깐 서 주세요.'):'뒤로 물러나 무릎과 양쪽 발목까지 보여 주세요.'});
+ camera.textContent='카메라 끄기';camera.disabled=false;choiceCamera.disabled=false;choiceCamera.textContent='웹캠 끄기';
  while(id===session){await model.send({image:cam});await new Promise(requestAnimationFrame)}
- }catch(e){if(id===session){stop();model=null;msg.textContent=e.name==='NotAllowedError'?'카메라 권한을 허용해 주세요.':'카메라와 인터넷 연결을 확인해 주세요. 스페이스바로도 탈 수 있어요.'}}
- finally{if(!stream||id===session)camera.disabled=false}
+ }catch(e){if(id===session){stop();model=null;lobbyStatus=msg.textContent=e.name==='NotAllowedError'?'Chrome에서 카메라 사용을 허용한 뒤 웹캠 켜기를 눌러 주세요.':'카메라와 인터넷 연결을 확인한 뒤 웹캠 켜기를 눌러 주세요. 보드는 클릭으로도 고를 수 있어요.'}}
+ finally{if(!stream||id===session){camera.disabled=false;choiceCamera.disabled=false}}
 };
-back.onclick=()=>{stop();camera.disabled=false;active=false;back.hidden=true;ride.hidden=true;menu.hidden=false;cards.firstChild.focus()};
+back.onclick=()=>{active=false;setStage(1);clearBoard();rackCalibrated=false;fitLobby();cards.firstChild.focus();if(!stream&&!camera.disabled)void camera.onclick()};
+studioReturn.onclick=()=>back.onclick();
+setStage(1);
+void camera.onclick();
 </script></body></html>
 
