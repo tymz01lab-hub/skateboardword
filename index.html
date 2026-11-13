@@ -292,10 +292,9 @@ function updateStance(points,now){
 }
 function previewPerson(g,canvas,now,center=.5){
  const person=currentPerson(now),iw=personCutout.width,ih=personCutout.height;
- const bounds=stage===4&&person?.bounds?person.bounds:{left:0,right:1,top:0,bottom:1};
- const scale=Math.min(canvas.height*(stage===4?.76:.84)/Math.max(1,(bounds.bottom-bounds.top)*ih),canvas.width*.8/Math.max(1,(bounds.right-bounds.left)*iw));
- const ox=canvas.width*center+(bounds.left+bounds.right)*iw*scale/2,oy=canvas.height*(stage===4?.87:.95)-bounds.bottom*ih*scale;
- return {person,iw,ih,scale,ox,oy,bodyHeight:(bounds.bottom-bounds.top)*ih,point:p=>({x:ox-p.x*iw*scale,y:oy+p.y*ih*scale})};
+ const scale=Math.min(canvas.height*.84/Math.max(1,ih),canvas.width*.8/Math.max(1,iw));
+ const ox=canvas.width*center+iw*scale/2,oy=canvas.height*.95-ih*scale;
+ return {person,iw,ih,scale,ox,oy,bodyHeight:ih,point:p=>({x:ox-p.x*iw*scale,y:oy+p.y*ih*scale})};
 }
 function paintPreviewPerson(g,view){
  if(!view.person)return;
@@ -351,19 +350,26 @@ function studioBoardPose(view){
    angle=Math.atan2((p[31].y-p[29].y)*view.ih,-(p[31].x-p[29].x)*view.iw);
    if(angle>Math.PI/2)angle-=Math.PI;else if(angle<-Math.PI/2)angle+=Math.PI;
  }
- return {x:foot.x,y:foot.y+112*size*.24,size,angle:Math.max(-.65,Math.min(.65,angle))};
+ return {x:foot.x,y:foot.y+112*size*.34,size,angle:Math.max(-.65,Math.min(.65,angle))};
+}
+function studioCameraView(now){
+ const iw=cam.videoWidth||640,ih=cam.videoHeight||480,person=currentPerson(now);
+ const scale=Math.min(studioCanvas.width/iw,studioCanvas.height/ih),ox=(studioCanvas.width+iw*scale)/2,oy=(studioCanvas.height-ih*scale)/2;
+ const bodyHeight=person?.bounds?(person.bounds.bottom-person.bounds.top)*ih:ih*.8;
+ return {person,iw,ih,scale,ox,oy,bodyHeight,point:p=>({x:ox-p.x*iw*scale,y:oy+p.y*ih*scale})};
 }
 function drawStudio(now){
  fitPreview(studioCanvas);const g=studioCanvas.getContext('2d'),w=studioCanvas.width,h=studioCanvas.height;
- g.fillStyle='#eee4cb';g.fillRect(0,0,w,h);if(shopWall.naturalWidth)cover(g,shopWall,0,0,w,h);
- const view=previewPerson(g,studioCanvas,now),board=studioBoardPose(view);
+ g.fillStyle='#17191b';g.fillRect(0,0,w,h);
+ const view=studioCameraView(now),cameraReady=cam.readyState>=2,board=cameraReady?studioBoardPose(view):null;
+ if(cameraReady){g.save();g.translate(view.ox,view.oy);g.scale(-view.scale,view.scale);g.drawImage(cam,0,0,view.iw,view.ih);g.restore()}
  const paintBoard=()=>{if(!board)return;g.save();g.translate(board.x,board.y);g.rotate(board.angle);if(studioMode==='foot')g.scale(1,.65);drawHeldDeck(0,0,board.size,g,theme);g.restore()};
- if(studioMode==='foot')paintBoard();paintPreviewPerson(g,view);
+ if(studioMode==='foot')paintBoard();
  if(studioMode==='hand'){
    paintBoard();
-   if(board){drawForegroundArm(view.person.points,board.wrist,view.iw,view.ih);g.save();g.translate(view.ox,view.oy);g.scale(-view.scale,view.scale);g.drawImage(armCutout,0,0);g.restore()}
+   if(board){drawForegroundArm(view.person.points,board.wrist,view.iw,view.ih,cam);g.save();g.translate(view.ox,view.oy);g.scale(-view.scale,view.scale);g.drawImage(armCutout,0,0);g.restore()}
  }
- studioHelp.textContent=!view.person?'카메라에 몸이 보이도록 서 주세요. 인식이 돌아오면 자동으로 이어집니다.':!board?(studioMode==='hand'?'한 손을 카메라에 보여 주세요. 손을 따라 보드가 움직입니다.':'왼쪽 발목이 카메라에 보이도록 서 주세요.'):(studioMode==='hand'?'손을 움직여 보세요. 보드가 손을 따라옵니다.':'왼발을 움직여 데크 디자인이 보이는 포즈를 만들어 보세요.');
+ studioHelp.textContent=!cameraReady?'웹캠을 준비하고 있습니다. 카메라 연결과 권한을 확인해 주세요.':!board?(studioMode==='hand'?'한 손을 카메라에 보여 주세요. 손을 따라 보드가 움직입니다.':'왼쪽 발목이 카메라에 보이도록 서 주세요.'):(studioMode==='hand'?'손을 움직여 보세요. 보드가 손을 따라옵니다.':'왼발을 움직여 데크 디자인이 보이는 포즈를 만들어 보세요.');
 }
 function lobbyLayout(w,h){
  const iw=cam.videoWidth||640,ih=cam.videoHeight||480;
@@ -621,7 +627,7 @@ function compositePerson(source){
  personBrush.globalCompositeOperation='destination-in';personBrush.drawImage(personMask,0,0);personBrush.globalCompositeOperation='source-over';
 }
 function refreshPersonVideo(now){
- if(!stream||cam.readyState<2||cam.currentTime===lastPersonVideoTime||!currentPerson(now))return;
+ if(stage===4||!stream||cam.readyState<2||cam.currentTime===lastPersonVideoTime||!currentPerson(now))return;
  compositePerson(cam);lastPersonVideoTime=cam.currentTime;
 }
 function personBounds(points){
@@ -632,14 +638,14 @@ function personBounds(points){
  return {left:Math.max(0,Math.min(...xs)-pad),right:Math.min(1,Math.max(...xs)+pad),top:Math.max(0,Math.min(...ys)-height*.16),bottom:Math.min(1,Math.max(...ys)+height*.04)};
 }
 const armCutout=document.createElement('canvas'),armBrush=armCutout.getContext('2d');
-function drawForegroundArm(points,wrist,width,height){
+function drawForegroundArm(points,wrist,width,height,source=personCutout){
  if(armCutout.width!==width||armCutout.height!==height){armCutout.width=width;armCutout.height=height}
  const elbow=points[wrist-2],hand=points[wrist];
  const shoulder=points[wrist-4],tip=points[wrist+4];
  const breadth=Math.max(12,Math.hypot((points[11].x-points[12].x)*width,(points[11].y-points[12].y)*height)*.28,
    Math.hypot((elbow.x-hand.x)*width,(elbow.y-hand.y)*height)*.34);
  armBrush.clearRect(0,0,width,height);
- armBrush.drawImage(personCutout,0,0);
+ armBrush.drawImage(source,0,0,width,height);
  armBrush.globalCompositeOperation='destination-in';
  armBrush.beginPath();armBrush.moveTo(shoulder.x*width,shoulder.y*height);
  armBrush.lineTo(elbow.x*width,elbow.y*height);
@@ -652,11 +658,13 @@ let finishPerson=null;
 function updateFinishPerson(result){
  const p=result.poseLandmarks,now=performance.now();
  // A small or turned face must not hide an otherwise visible body.
- if(!p||!result.segmentationMask){if(!currentPerson(now)){lobbyPerson=null;finishPerson=null}return}
+ if(!p||(stage!==4&&!result.segmentationMask)){if(!currentPerson(now)){lobbyPerson=null;finishPerson=null}return}
  const width=cam.videoWidth,height=cam.videoHeight;if(!width||!height)return;
- if(personCutout.width!==width||personCutout.height!==height){personCutout.width=personMask.width=width;personCutout.height=personMask.height=height}
- maskBrush.clearRect(0,0,width,height);maskBrush.drawImage(result.segmentationMask,0,0,width,height);
- compositePerson(stream&&cam.readyState>=2?cam:result.image);lastPersonVideoTime=cam.currentTime;
+ if(stage!==4){
+   if(personCutout.width!==width||personCutout.height!==height){personCutout.width=personMask.width=width;personCutout.height=personMask.height=height}
+   maskBrush.clearRect(0,0,width,height);maskBrush.drawImage(result.segmentationMask,0,0,width,height);
+   compositePerson(stream&&cam.readyState>=2?cam:result.image);lastPersonVideoTime=cam.currentTime;
+ }
  const bounds=personBounds(p);
  if(lobbyPerson?.bounds)for(const key of ['left','right','top','bottom'])bounds[key]=lobbyPerson.bounds[key]*.7+bounds[key]*.3;
  lobbyPerson={points:p,time:now,bounds};
