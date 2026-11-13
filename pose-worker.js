@@ -19,16 +19,18 @@ self.onmessage=async({data})=>{
   const {job,type}=data;let transferred=false;
   try{
     if(type==='init'){
-      const base='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32';
-      const {FilesetResolver,PoseLandmarker}=await import(base+'/vision_bundle.mjs');
-      const files=await FilesetResolver.forVisionTasks(base+'/wasm');
-      const options={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',delegate:'GPU'},runningMode:'VIDEO',numPoses:4,outputSegmentationMasks:true,minPoseDetectionConfidence:.3,minPosePresenceConfidence:.3,minTrackingConfidence:.3};
-      try{detector=await PoseLandmarker.createFromOptions(files,options)}catch{options.baseOptions.delegate='CPU';detector=await PoseLandmarker.createFromOptions(files,options)}
+      const base=new URL('assets/vision/',self.location.href).href;
+      const {FilesetResolver,PoseLandmarker}=await import(base+'vision_bundle.js');
+      const files=await FilesetResolver.forVisionTasks(base+'wasm');
+      const options={baseOptions:{modelAssetPath:base+'pose_landmarker_lite.task',delegate:'CPU'},runningMode:'VIDEO',numPoses:4,outputSegmentationMasks:true,minPoseDetectionConfidence:.3,minPosePresenceConfidence:.3,minTrackingConfidence:.3};
+      // GPU initialization can succeed while its segmentation readback is all zero.
+      // CPU/WASM in this worker keeps the display responsive and the mask portable.
+      detector=await PoseLandmarker.createFromOptions(files,options);
       self.postMessage({job,ready:true});return;
     }
     if(type==='reset'){tracker.reset();self.postMessage({job,ready:true});return}
     const image=data.image;sampleBrush.drawImage(image,0,0,32,24);const pixels=sampleBrush.getImageData(0,0,32,24).data;
-    let tracking,points=null,maskReady=false;
+    let tracking,points=null,maskReady=false,maskPeak=0;
     // Consume only the selected mask inside the callback; other people never drive the app.
     detector.detectForVideo(image,data.time,result=>{
       const candidates=result.landmarks.map((p,index)=>tracker.candidate(p,index,appearance(p,pixels)));
@@ -37,12 +39,13 @@ self.onmessage=async({data})=>{
       points=result.landmarks[tracking.index];
       const mask=result.segmentationMasks?.[tracking.index];if(!mask||!data.needMask)return;
       const values=mask.getAsFloat32Array(),rgba=new Uint8ClampedArray(values.length*4);
-      for(let i=0;i<values.length;i++){rgba[i*4]=rgba[i*4+1]=rgba[i*4+2]=255;rgba[i*4+3]=Math.round(Math.max(0,Math.min(1,values[i]))*255)}
+      for(let i=0;i<values.length;i++){maskPeak=Math.max(maskPeak,values[i]);rgba[i*4]=rgba[i*4+1]=rgba[i*4+2]=255;rgba[i*4+3]=Math.round(Math.max(0,Math.min(1,values[i]))*255)}
+      if(!(maskPeak>.05))return;
       if(maskCanvas.width!==mask.width||maskCanvas.height!==mask.height){maskCanvas.width=mask.width;maskCanvas.height=mask.height}
       maskBrush.putImageData(new ImageData(rgba,mask.width,mask.height),0,0);maskReady=true;
     });
     const mask=maskReady?await createImageBitmap(maskCanvas):null;
-    self.postMessage({job,poseLandmarks:points,tracking,segmentationMask:mask,image},mask?[image,mask]:[image]);transferred=true;
+    self.postMessage({job,poseLandmarks:points,tracking,segmentationMask:mask,image,maskPeak},mask?[image,mask]:[image]);transferred=true;
   }catch(error){self.postMessage({job,error:String(error.message||error)})}
   finally{if(data.image&&!transferred)data.image.close()}
 };

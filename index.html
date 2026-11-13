@@ -601,7 +601,8 @@ function frame(now){
 let stream=null,session=0,model,webcamBackdrop=null;
 let participant={id:0,locked:false,missing:false};
 async function createPoseModel(){
- const worker=new Worker('pose-worker.js'),pending=new Map();let sequence=0,callback=()=>{};
+ if(!window.Worker||!window.createImageBitmap)throw Object.assign(new Error('Camera processing is unsupported'),{name:'NotSupportedError'});
+ const worker=new Worker('pose-worker.js?v=cutout-cpu-20261113'),pending=new Map();let sequence=0,callback=()=>{};
  const request=(message,transfer=[])=>new Promise((resolve,reject)=>{const job=++sequence;pending.set(job,{resolve,reject});worker.postMessage({...message,job},transfer)});
  worker.onmessage=({data})=>{const item=pending.get(data.job);if(!item){data.image?.close();data.segmentationMask?.close();return}pending.delete(data.job);if(data.error)item.reject(new Error(data.error));else item.resolve(data)};
  const close=()=>{worker.terminate();for(const item of pending.values())item.reject(new Error('Camera stopped'));pending.clear()};
@@ -765,6 +766,7 @@ camera.onclick=async()=>{
  if(stream){stop();msg.textContent='카메라 꺼짐 · 스페이스바로 탈 수 있어요.';return}
  camera.disabled=true;choiceCamera.disabled=true;choiceCamera.textContent='웹캠 준비 중…';lobbyStatus='카메라를 준비하고 있습니다. Chrome에서 카메라 사용을 허용해 주세요.';const id=++session;
  try{
+ if(!navigator.mediaDevices?.getUserMedia)throw Object.assign(new Error('Camera API is unsupported'),{name:'NotSupportedError'});
  const acquired=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
  if(id!==session){acquired.getTracks().forEach(t=>t.stop());return}stream=acquired;cam.srcObject=stream;cam.hidden=true;await cam.play();webcamBackdrop=makeRoomBackground();lobbyStatus=msg.textContent='동작 인식 도구를 불러오는 중…';
  const readyModel=await createPoseModel();if(id!==session){readyModel.close();return}model=readyModel;
@@ -776,7 +778,7 @@ camera.onclick=async()=>{
    if(cam.readyState>=2&&cam.currentTime!==sentTime){sentTime=cam.currentTime;inputBrush.drawImage(cam,0,0,input.width,input.height);await model.send({image:input})}
    await new Promise(requestAnimationFrame);
  }
- }catch(e){if(id===session){stop();model=null;lobbyStatus=msg.textContent=e.name==='NotAllowedError'?'Chrome에서 카메라 사용을 허용한 뒤 웹캠 켜기를 눌러 주세요.':'카메라와 인터넷 연결을 확인한 뒤 웹캠 켜기를 눌러 주세요. 보드는 클릭으로도 고를 수 있어요.'}}
+ }catch(e){if(id===session){stop();model=null;const errors={NotAllowedError:'Chrome의 주소창 왼쪽에서 카메라 사용을 허용한 뒤 웹캠 켜기를 눌러 주세요.',NotFoundError:'연결된 카메라를 찾지 못했습니다. 웹캠 연결 후 다시 켜 주세요.',NotReadableError:'카메라를 열지 못했습니다. 카메라를 사용하는 다른 앱을 닫고 다시 켜 주세요.',NotSupportedError:'이 브라우저에서는 카메라 처리를 지원하지 않습니다. 최신 Chrome에서 열어 주세요.'};lobbyStatus=msg.textContent=errors[e.name]||'동작 인식 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 최신 Chrome에서 다시 열어 주세요.'}}
  finally{if(!stream||id===session){camera.disabled=false;choiceCamera.disabled=false}}
 };
 back.onclick=()=>{active=false;setStage(1);clearBoard();rackCalibrated=false;fitLobby();cards.firstChild.focus();if(!stream&&!camera.disabled)void camera.onclick()};
