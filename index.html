@@ -447,7 +447,8 @@ function step(dt){
  if(r.vy>=0){const hit=rails.filter(l=>r.x>=l.a[0]&&r.x<=l.b[0]&&oldY<=height(l,r.x)+1&&r.y>=height(l,r.x)).sort((a,b)=>height(a,r.x)-height(b,r.x))[0];
  if(hit){r.line=hit;r.y=height(hit,r.x);r.vy=0;flash=.3;tone(theme===themes[0]?700:140,theme===themes[0]?290:40,.22)}}}
  if(r.line&&r.vx>30){bank+=r.vx*dt;if(bank>46){bank=0;tone(79,40,.04,'triangle',.045)}}
- if(r.x>=goal&&r.line){finished=true;finishedAt=performance.now();r.vx=0;again.hidden=false;msg.textContent=theme.word+' 완주! 멋진 라이딩이었어요.';openStudio()}else if(r.y>500||r.x>wall.width){resetRide();msg.textContent='다시 출발해요. 획 끝에 닿기 전에 알리!'}
+ // Crossing the finish counts during an ollie as well as while riding a rail.
+ if(r.x>=goal){finished=true;finishedAt=performance.now();r.vx=0;again.hidden=false;msg.textContent=theme.word+' 완주! 멋진 라이딩이었어요.';openStudio()}else if(r.y>500||r.x>wall.width){resetRide();msg.textContent='다시 출발해요. 획 끝에 닿기 전에 알리!'}
  flash=Math.max(0,flash-dt);fish.forEach(f=>f.t+=dt);fish=fish.filter(f=>f.t<1);
 }
 function fitScene(){
