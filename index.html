@@ -51,6 +51,7 @@ main,main:has(#menu:not([hidden])),main:has(#ride:not([hidden])){max-width:none;
 .lesson-cards{display:grid;grid-template-rows:1fr 1fr;gap:14px}.lesson-card{border:2px solid #211e1b;padding:20px;background:#fff8e9;display:flex;flex-direction:column;justify-content:center;gap:8px}
 .lesson-card b{font-size:clamp(20px,2vw,30px)}.lesson-card p{margin:0;color:#48423a}.lesson-card[data-done="true"]{background:#dbe7b5}.lesson-card[data-done="true"] b::after{content:" ✓"}
 .stage-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.stage-footer p{margin:0;color:#48423a}.stage-footer button{background:#ffce51}
+.studio-modes{justify-content:flex-start;gap:8px}.studio-modes button{background:#fff8e9}.studio-modes button[aria-pressed="true"]{background:#ffce51;border-color:#211e1b}
 @media(max-width:620px){.journey span{padding:5px 2px}.learn-layout{grid-template-columns:1fr;grid-template-rows:minmax(160px,1fr) auto;gap:8px}.lesson-cards{grid-template-columns:1fr 1fr;grid-template-rows:auto;gap:8px}.lesson-card{padding:10px;font-size:12px}.lesson-card b{font-size:18px}.stage-heading p{font-size:13px}.stage-footer{font-size:13px}}
 </style></head><body><main>
 <header><b>Jamo Skate Club</b><nav><button id="back" hidden>글자 바꾸기 ↗</button><button id="resetExhibition" type="button" aria-keyshortcuts="R" onclick="window.location.reload()">처음부터 (R)</button></nav></header>
@@ -62,7 +63,7 @@ main,main:has(#menu:not([hidden])),main:has(#ride:not([hidden])){max-width:none;
 <section id="ride" hidden><div class="stage-slot"><div class="stage-frame"><h1 id="title"></h1><canvas id="scene" width="1080" height="450"></canvas></div></div>
 <div class="bar"><button id="push" class="action">밀기 →</button><button id="ollie">알리 · Space</button><button id="again" hidden>다시 타기</button><button id="camera">내 몸으로 타기</button><video id="cam" autoplay playsinline muted hidden></video></div>
 <small id="status" role="status">두 발 벌리고 서기 → 전진 · 두 발 함께 뛰기 → 알리</small></section>
-<section id="studio" hidden><div class="stage-heading"><h1>내 보드와 함께</h1><p>오늘 고른 데크와 나만의 포즈를 만들어 보세요.</p></div><div class="preview-slot"><canvas id="studioCanvas" width="1280" height="720" aria-label="내 보드와 함께하는 포즈 화면"></canvas></div><div class="stage-footer"><p id="studioLabel"></p><button id="studioReturn">보드샵으로 돌아가기</button></div></section></main>
+<section id="studio" hidden><div class="stage-heading"><h1>내 보드와 함께</h1><p id="studioHelp" role="status">손에 들거나 왼발에 붙이고, 나만의 포즈를 만들어 보세요.</p><nav class="studio-modes" aria-label="보드 포즈 선택"><button id="studioHand" type="button" aria-pressed="true">손에 들기</button><button id="studioFoot" type="button" aria-pressed="false">왼발에 붙이기</button></nav></div><div class="preview-slot"><canvas id="studioCanvas" width="1280" height="720" aria-label="손이나 왼발을 따라오는 내 보드와 실시간 내 모습"></canvas></div><div class="stage-footer"><p id="studioLabel"></p><button id="studioReturn">보드샵으로 돌아가기</button></div></section></main>
 <script id="app-script">
 function arc(a,control,b){
  return Array.from({length:25},(_,i)=>{const t=i/24,u=1-t;return [u*u*a[0]+2*u*t*control[0]+t*t*b[0],u*u*a[1]+2*u*t*control[1]+t*t*b[1]]});
@@ -290,14 +291,18 @@ function updateStance(points,now){
  return wide;
 }
 function previewPerson(g,canvas,now,center=.5){
- const person=lobbyPerson&&now-lobbyPerson.time>=0&&now-lobbyPerson.time<750?lobbyPerson:null;
- const iw=personCutout.width,ih=personCutout.height,scale=Math.min(canvas.height*.84/Math.max(1,ih),canvas.width*.8/Math.max(1,iw));
- const ox=canvas.width*center+iw*scale/2,oy=canvas.height*.95-ih*scale;
- if(person){g.save();g.translate(ox,oy);g.scale(-scale,scale);g.drawImage(personCutout,0,0);g.restore()}
- return {person,point:p=>({x:ox-p.x*iw*scale,y:oy+p.y*ih*scale})};
+ const person=currentPerson(now),iw=personCutout.width,ih=personCutout.height;
+ const bounds=stage===4&&person?.bounds?person.bounds:{left:0,right:1,top:0,bottom:1};
+ const scale=Math.min(canvas.height*(stage===4?.76:.84)/Math.max(1,(bounds.bottom-bounds.top)*ih),canvas.width*.8/Math.max(1,(bounds.right-bounds.left)*iw));
+ const ox=canvas.width*center+(bounds.left+bounds.right)*iw*scale/2,oy=canvas.height*(stage===4?.87:.95)-bounds.bottom*ih*scale;
+ return {person,iw,ih,scale,ox,oy,bodyHeight:(bounds.bottom-bounds.top)*ih,point:p=>({x:ox-p.x*iw*scale,y:oy+p.y*ih*scale})};
+}
+function paintPreviewPerson(g,view){
+ if(!view.person)return;
+ g.save();g.translate(view.ox,view.oy);g.scale(-view.scale,view.scale);g.drawImage(personCutout,0,0);g.restore();
 }
 function fitPreview(canvas){
- const ratio=Math.min(window.devicePixelRatio||1,2),w=Math.round(canvas.clientWidth*ratio),h=Math.round(canvas.clientHeight*ratio);
+ const ratio=Math.min(window.devicePixelRatio||1,1.5,1600/Math.max(1,canvas.clientWidth),1000/Math.max(1,canvas.clientHeight)),w=Math.round(canvas.clientWidth*ratio),h=Math.round(canvas.clientHeight*ratio);
  if(w&&h&&(canvas.width!==w||canvas.height!==h)){canvas.width=w;canvas.height=h}
 }
 function drawLesson(now){
@@ -305,6 +310,7 @@ function drawLesson(now){
  fitPreview(lessonCanvas);const g=lessonCanvas.getContext('2d'),w=lessonCanvas.width,h=lessonCanvas.height;
  g.fillStyle='#f9f2e1';g.fillRect(0,0,w,h);g.fillStyle='#ded4bc';g.fillRect(0,h*.93,w,h*.07);
  const view=previewPerson(g,lessonCanvas,now);
+ paintPreviewPerson(g,view);
  if(view.person){
    const p=view.person.points;
    for(const chain of [[23,25,27],[24,26,28]])if(chain.every(i=>p[i].visibility>.35)){
@@ -321,13 +327,43 @@ function drawLesson(now){
  lessonStatus.textContent=learning.goAt?'준비 끝! '+Math.max(1,Math.ceil((learning.goAt-now)/1000))+'초 후 파크로 이동합니다.':!view.person?'몸 전체와 양쪽 발목이 카메라에 보이도록 서 주세요.':!learning.jump?(motion.ground?'두 발을 함께 가볍게 띄워 보세요!':'양발을 바닥에 두고 잠깐 서 주세요.'):'알리 성공! 이제 두 발을 어깨너비로 벌리고 잠깐 서 보세요.';
 }
 function openStudio(){
- active=false;setStage(4);studioLabel.textContent='내가 고른 ‘'+theme.word+'’ 데크';
+ active=false;setStage(4);chooseStudioMode('hand');studioLabel.textContent='내가 고른 ‘'+theme.word+'’ 데크';
+}
+let studioMode='hand',studioWrist=null;
+function chooseStudioMode(mode){
+ studioMode=mode;studioWrist=null;studioHand.setAttribute('aria-pressed',String(mode==='hand'));studioFoot.setAttribute('aria-pressed',String(mode==='foot'));
+}
+studioHand.onclick=()=>chooseStudioMode('hand');studioFoot.onclick=()=>chooseStudioMode('foot');
+function studioBoardPose(view){
+ const p=view.person?.points;if(!p)return null;
+ const visible=i=>p[i]?.visibility>.3&&p[i].x>=0&&p[i].x<=1&&p[i].y>=0&&p[i].y<=1;
+ const size=Math.min(view.bodyHeight*view.scale*.53,studioCanvas.width*.70,studioCanvas.height*.48)/436;
+ if(studioMode==='hand'){
+   if(studioWrist===null||!visible(studioWrist))studioWrist=[15,16].filter(visible).sort((a,b)=>p[b].visibility-p[a].visibility)[0]??null;
+   if(studioWrist===null)return null;
+   const hand=view.point(p[studioWrist]);return {x:hand.x,y:hand.y-112*size*.26,size,angle:0,wrist:studioWrist};
+ }
+ if(!visible(27))return null;
+ const anchors=[29,31].filter(visible),feet=anchors.length?anchors:[27];
+ const foot=view.point({x:feet.reduce((sum,i)=>sum+p[i].x,0)/feet.length,y:Math.max(...feet.map(i=>p[i].y))});
+ let angle=0;
+ if(visible(29)&&visible(31)){
+   angle=Math.atan2((p[31].y-p[29].y)*view.ih,-(p[31].x-p[29].x)*view.iw);
+   if(angle>Math.PI/2)angle-=Math.PI;else if(angle<-Math.PI/2)angle+=Math.PI;
+ }
+ return {x:foot.x,y:foot.y+112*size*.24,size,angle:Math.max(-.65,Math.min(.65,angle))};
 }
 function drawStudio(now){
  fitPreview(studioCanvas);const g=studioCanvas.getContext('2d'),w=studioCanvas.width,h=studioCanvas.height;
  g.fillStyle='#eee4cb';g.fillRect(0,0,w,h);if(shopWall.naturalWidth)cover(g,shopWall,0,0,w,h);
- previewPerson(g,studioCanvas,now,.37);
- g.save();g.translate(w*.78,h*.52);g.rotate(Math.PI/2);drawHeldDeck(0,0,h*.62/436,g,theme);g.restore();
+ const view=previewPerson(g,studioCanvas,now),board=studioBoardPose(view);
+ const paintBoard=()=>{if(!board)return;g.save();g.translate(board.x,board.y);g.rotate(board.angle);if(studioMode==='foot')g.scale(1,.65);drawHeldDeck(0,0,board.size,g,theme);g.restore()};
+ if(studioMode==='foot')paintBoard();paintPreviewPerson(g,view);
+ if(studioMode==='hand'){
+   paintBoard();
+   if(board){drawForegroundArm(view.person.points,board.wrist,view.iw,view.ih);g.save();g.translate(view.ox,view.oy);g.scale(-view.scale,view.scale);g.drawImage(armCutout,0,0);g.restore()}
+ }
+ studioHelp.textContent=!view.person?'카메라에 몸이 보이도록 서 주세요. 인식이 돌아오면 자동으로 이어집니다.':!board?(studioMode==='hand'?'한 손을 카메라에 보여 주세요. 손을 따라 보드가 움직입니다.':'왼쪽 발목이 카메라에 보이도록 서 주세요.'):(studioMode==='hand'?'손을 움직여 보세요. 보드가 손을 따라옵니다.':'왼발을 움직여 데크 디자인이 보이는 포즈를 만들어 보세요.');
 }
 function lobbyLayout(w,h){
  const iw=cam.videoWidth||640,ih=cam.videoHeight||480;
@@ -360,12 +396,12 @@ function drawSelection(now){
  const g=holding.getContext('2d'),w=holding.width,h=holding.height;
  g.fillStyle='#b4a78d';g.fillRect(0,0,w,h);
  if(shopWall.naturalWidth)cover(g,shopWall,0,0,w,h);
- const layout=lobbyLayout(w,h),person=lobbyPerson&&now-lobbyPerson.time<750?lobbyPerson:null;
+ const layout=lobbyLayout(w,h),person=currentPerson(now),tracked=person&&now-person.time<500?person:null;
  if(person&&!rackCalibrated){rackHeight=Math.max(.28,Math.min(.34,layout.point(person.points[0]).y/h-.18));rackCalibrated=true}
  document.querySelector('.lobby-heading').style.top=Math.max(.02,rackHeight-.24)*100+'%';
  const boards=rackBoards(w,h);
- const hands=person?[15,16].filter(i=>person.points[i].visibility>.55&&person.points[i].x>0&&person.points[i].x<1&&person.points[i].y>0&&person.points[i].y<1).map(wrist=>{
-   const tip=person.points[wrist+4],p=tip.visibility>.55?tip:person.points[wrist];return {...layout.point(p),wrist};
+ const hands=tracked?[15,16].filter(i=>tracked.points[i].visibility>.55&&tracked.points[i].x>0&&tracked.points[i].x<1&&tracked.points[i].y>0&&tracked.points[i].y<1).map(wrist=>{
+   const tip=tracked.points[wrist+4],p=tip.visibility>.55?tip:tracked.points[wrist];return {...layout.point(p),wrist};
  }):[];
  if(!document.hidden)updateReach(hands,boards,now);else reach=null;
  boards.forEach((b,i)=>{
@@ -505,8 +541,8 @@ function drawFinish(){
 }
 again.onclick=()=>enter(theme);
 function drawLiveRider(){
- const person=lobbyPerson;
- if(!person||performance.now()-person.time>=750)return false;
+ const person=currentPerson(performance.now());
+ if(!person)return false;
  const p=person.points,iw=personCutout.width,ih=personCutout.height;
  if(!iw||!ih)return false;
  const feet=[27,28,29,30,31,32].map(i=>p[i]).filter(point=>point.visibility>.4&&point.x>=0&&point.x<=1&&point.y>0&&point.y<=1);
@@ -548,6 +584,7 @@ function draw(){
 }
 function frame(now){
  try{
+ refreshPersonVideo(now);
  if(stage===1)drawSelection(now);
  else if(stage===2)drawLesson(now);
  else if(stage===3&&active){step(Math.min(.034,(now-last)/1000)*gamePace);if(stage===3)draw()}
@@ -563,45 +600,37 @@ function resetMotion(keepGround=false){
 }
 resetMotion();
 function makeRoomBackground(){
-  const canvas=document.createElement('canvas');
-  canvas.width=Math.min(cam.videoWidth,480);
-  canvas.height=Math.round(canvas.width*cam.videoHeight/cam.videoWidth);
-  const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  const {width:w,height:h}=canvas;
-  const history=new Uint8ClampedArray(w*h*4),seen=new Uint8Array(w*h);
-  const texture={image:canvas,userData:{},ready:false};
-  
-  texture.userData.update=result=>{
-    if(!result.segmentationMask)return;
-    ctx.clearRect(0,0,w,h);ctx.drawImage(result.segmentationMask,0,0,w,h);
-    const mask=ctx.getImageData(0,0,w,h).data;
-    ctx.drawImage(result.image,0,0,w,h);
-    const frame=ctx.getImageData(0,0,w,h),pixels=frame.data;
-    for(let y=0;y<h;y++){
-      let left=-1,right=0;
-      const row=y*w;
-      for(let x=0;x<w;x++){
-        const i=row+x,k=4*i;
-        if(mask[k+3]<12){
-          for(let c=0;c<3;c++)history[k+c]=pixels[k+c];
-          seen[i]=1;left=x;continue;
-        }
-        right=Math.max(right,x+1);
-        while(right<w&&mask[4*(row+right)+3]>=12)right++;
-        const l=left>=0?left:right,r=right<w?right:left;
-        const mix=l===r?0:(x-l)/(r-l);
-        for(let c=0;c<3;c++){
-          pixels[k+c]=seen[i]?history[k+c]:l>=0&&l<w?
-            pixels[4*(row+l)+c]*(1-mix)+pixels[4*(row+r)+c]*mix:128;
-        }
-      }
-    }
-    ctx.putImageData(frame,0,0);texture.ready=true;
-  };
-  return texture;
+ const canvas=document.createElement('canvas'),layer=document.createElement('canvas');
+ canvas.width=layer.width=Math.min(cam.videoWidth,320);canvas.height=layer.height=Math.round(canvas.width*cam.videoHeight/cam.videoWidth);
+ const g=canvas.getContext('2d'),paint=layer.getContext('2d'),texture={image:canvas,userData:{},ready:false};
+ texture.userData.update=result=>{
+   if(!result.segmentationMask)return;
+   paint.clearRect(0,0,layer.width,layer.height);paint.drawImage(result.image,0,0,layer.width,layer.height);
+   paint.globalCompositeOperation='destination-out';paint.drawImage(result.segmentationMask,0,0,layer.width,layer.height);paint.globalCompositeOperation='source-over';
+   g.drawImage(layer,0,0);texture.ready=true;
+ };
+ return texture;
 }
-
 const personCutout=document.createElement('canvas'),personBrush=personCutout.getContext('2d');
+const personMask=document.createElement('canvas'),maskBrush=personMask.getContext('2d');
+const personDisplayTimeout=2000;
+let lastPersonVideoTime=-1;
+function currentPerson(now){return lobbyPerson&&now-lobbyPerson.time>=0&&now-lobbyPerson.time<personDisplayTimeout?lobbyPerson:null}
+function compositePerson(source){
+ personBrush.clearRect(0,0,personCutout.width,personCutout.height);personBrush.drawImage(source,0,0,personCutout.width,personCutout.height);
+ personBrush.globalCompositeOperation='destination-in';personBrush.drawImage(personMask,0,0);personBrush.globalCompositeOperation='source-over';
+}
+function refreshPersonVideo(now){
+ if(!stream||cam.readyState<2||cam.currentTime===lastPersonVideoTime||!currentPerson(now))return;
+ compositePerson(cam);lastPersonVideoTime=cam.currentTime;
+}
+function personBounds(points){
+ const visible=points.filter(p=>p.visibility>.25&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=0&&p.x<=1&&p.y>=0&&p.y<=1);
+ if(visible.length<4)return {left:0,right:1,top:0,bottom:1};
+ if(points[0]&&points[0].x>=0&&points[0].x<=1&&points[0].y>=0&&points[0].y<=1)visible.push(points[0]);
+ const xs=visible.map(p=>p.x),ys=visible.map(p=>p.y),height=Math.max(.2,Math.max(...ys)-Math.min(...ys)),pad=height*.1*(cam.videoHeight/cam.videoWidth);
+ return {left:Math.max(0,Math.min(...xs)-pad),right:Math.min(1,Math.max(...xs)+pad),top:Math.max(0,Math.min(...ys)-height*.16),bottom:Math.min(1,Math.max(...ys)+height*.04)};
+}
 const armCutout=document.createElement('canvas'),armBrush=armCutout.getContext('2d');
 function drawForegroundArm(points,wrist,width,height){
  if(armCutout.width!==width||armCutout.height!==height){armCutout.width=width;armCutout.height=height}
@@ -621,13 +650,16 @@ function drawForegroundArm(points,wrist,width,height){
 }
 let finishPerson=null;
 function updateFinishPerson(result){
- const p=result.poseLandmarks;
- if(!p||!result.segmentationMask||p[0].visibility<.5){lobbyPerson=null;return}
+ const p=result.poseLandmarks,now=performance.now();
+ // A small or turned face must not hide an otherwise visible body.
+ if(!p||!result.segmentationMask){if(!currentPerson(now)){lobbyPerson=null;finishPerson=null}return}
  const width=cam.videoWidth,height=cam.videoHeight;if(!width||!height)return;
- if(personCutout.width!==width||personCutout.height!==height){personCutout.width=width;personCutout.height=height}
- personBrush.clearRect(0,0,width,height);personBrush.drawImage(result.image,0,0,width,height);
- personBrush.globalCompositeOperation='destination-in';personBrush.drawImage(result.segmentationMask,0,0,width,height);personBrush.globalCompositeOperation='source-over';
- lobbyPerson={points:p,time:performance.now()};
+ if(personCutout.width!==width||personCutout.height!==height){personCutout.width=personMask.width=width;personCutout.height=personMask.height=height}
+ maskBrush.clearRect(0,0,width,height);maskBrush.drawImage(result.segmentationMask,0,0,width,height);
+ compositePerson(stream&&cam.readyState>=2?cam:result.image);lastPersonVideoTime=cam.currentTime;
+ const bounds=personBounds(p);
+ if(lobbyPerson?.bounds)for(const key of ['left','right','top','bottom'])bounds[key]=lobbyPerson.bounds[key]*.7+bounds[key]*.3;
+ lobbyPerson={points:p,time:now,bounds};
  if([27,28,29,30,31,32].some(i=>p[i].visibility>.4))finishPerson=lobbyPerson;
 }
 function measure(points,allowActions=true){
@@ -696,7 +728,7 @@ function measure(points,allowActions=true){
  }
  return true;
 }
-function stop(){session++;stream?.getTracks().forEach(t=>t.stop());stream=null;cam.srcObject=null;webcamBackdrop=null;finishPerson=null;lobbyPerson=null;previewStartedAt=null;reach=null;rackCalibrated=false;cam.hidden=true;resetMotion();camera.textContent='내 몸으로 타기';choiceCamera.textContent='웹캠 켜기';lobbyStatus='웹캠 켜기를 누르고 카메라 사용을 허용해 주세요.'}
+function stop(){session++;stream?.getTracks().forEach(t=>t.stop());stream=null;cam.srcObject=null;webcamBackdrop=null;finishPerson=null;lobbyPerson=null;lastPersonVideoTime=-1;previewStartedAt=null;reach=null;rackCalibrated=false;cam.hidden=true;resetMotion();camera.textContent='내 몸으로 타기';choiceCamera.textContent='웹캠 켜기';lobbyStatus='웹캠 켜기를 누르고 카메라 사용을 허용해 주세요.'}
 camera.onclick=async()=>{
  if(camera.disabled)return;
  if(stream){stop();msg.textContent='카메라 꺼짐 · 스페이스바로 탈 수 있어요.';return}
@@ -705,10 +737,15 @@ camera.onclick=async()=>{
  const acquired=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
  if(id!==session){acquired.getTracks().forEach(t=>t.stop());return}stream=acquired;cam.srcObject=stream;cam.hidden=true;await cam.play();webcamBackdrop=makeRoomBackground();lobbyStatus=msg.textContent='동작 인식 도구를 불러오는 중…';
  if(!window.Pose)await new Promise((ok,fail)=>{const s=document.createElement('script');s.src=base+'pose.js';s.onload=ok;s.onerror=fail;document.head.append(s)});
- if(id!==session)return;if(!model){model=new Pose({locateFile:file=>base+file});model.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:true,smoothSegmentation:true})}
+ if(id!==session)return;if(!model){model=new Pose({locateFile:file=>base+file});model.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:true,smoothSegmentation:true,minDetectionConfidence:.3,minTrackingConfidence:.3})}
  model.onResults(r=>{if(id!==session)return;updateFinishPerson(r);if(stage===1){measure(r.poseLandmarks,false);lobbyStatus='얼굴과 손이 보이도록 카메라 앞에 서 주세요.';return}if(stage===2){measure(r.poseLandmarks);updateStance(r.poseLandmarks,performance.now());return}if(stage===4||finished)return;webcamBackdrop?.userData.update(r);const tracked=active?measure(r.poseLandmarks):false;const wide=updateStance(r.poseLandmarks,performance.now());msg.textContent=tracked?(motion.lastFeetSeen===null||performance.now()-motion.lastFeetSeen>250?'양쪽 발목이 카메라에 보이도록 조금 뒤로 서 주세요.':motion.ground?(wide?'좋아요! 두 발을 벌리고 전진 중 · 두 발 함께 가볍게 뛰면 알리!':'두 발을 어깨너비로 벌려 보세요. 보드가 앞으로 갑니다.'):'양발을 바닥에 두고 잠깐 서 주세요.'):'뒤로 물러나 무릎과 양쪽 발목까지 보여 주세요.'});
  camera.textContent='카메라 끄기';camera.disabled=false;choiceCamera.disabled=false;choiceCamera.textContent='웹캠 끄기';
- while(id===session){await model.send({image:cam});await new Promise(requestAnimationFrame)}
+ const input=document.createElement('canvas'),inputBrush=input.getContext('2d');input.width=Math.min(480,cam.videoWidth);input.height=Math.round(input.width*cam.videoHeight/cam.videoWidth);
+ let sentTime=-1;
+ while(id===session){
+   if(cam.readyState>=2&&cam.currentTime!==sentTime){sentTime=cam.currentTime;inputBrush.drawImage(cam,0,0,input.width,input.height);await model.send({image:input})}
+   await new Promise(requestAnimationFrame);
+ }
  }catch(e){if(id===session){stop();model=null;lobbyStatus=msg.textContent=e.name==='NotAllowedError'?'Chrome에서 카메라 사용을 허용한 뒤 웹캠 켜기를 눌러 주세요.':'카메라와 인터넷 연결을 확인한 뒤 웹캠 켜기를 눌러 주세요. 보드는 클릭으로도 고를 수 있어요.'}}
  finally{if(!stream||id===session){camera.disabled=false;choiceCamera.disabled=false}}
 };
