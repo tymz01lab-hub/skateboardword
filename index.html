@@ -54,7 +54,7 @@ main,main:has(#menu:not([hidden])),main:has(#ride:not([hidden])){max-width:none;
 .studio-modes{justify-content:flex-start;gap:8px}.studio-modes button{background:#fff8e9}.studio-modes button[aria-pressed="true"]{background:#ffce51;border-color:#211e1b}
 @media(max-width:620px){.journey span{padding:5px 2px}.learn-layout{grid-template-columns:1fr;grid-template-rows:minmax(160px,1fr) auto;gap:8px}.lesson-cards{grid-template-columns:1fr 1fr;grid-template-rows:auto;gap:8px}.lesson-card{padding:10px;font-size:12px}.lesson-card b{font-size:18px}.stage-heading p{font-size:13px}.stage-footer{font-size:13px}}
 </style></head><body><main>
-<header><b>Jamo Skate Club</b><nav><button id="back" hidden>글자 바꾸기 ↗</button><button id="resetExhibition" type="button" aria-keyshortcuts="R" onclick="window.location.reload()">처음부터 (R)</button></nav></header>
+<header><b>Jamo Skate Club</b><small id="participantStatus" role="status">체험자를 기다리고 있어요</small><nav><button id="back" hidden>글자 바꾸기 ↗</button><button id="resetExhibition" type="button" aria-keyshortcuts="R" onclick="window.location.reload()">처음부터 (R)</button></nav></header>
 <nav class="journey" aria-label="체험 단계"><span id="stepShop" aria-current="step">1 보드샵</span><span id="stepLearn">2 타는 법 배우기</span><span id="stepPark">3 파크</span><span id="stepStudio">4 보드와 촬영</span></nav>
 <section id="menu"><div class="lobby-slot"><div class="lobby-heading"><h1>데크 디자인을 골라보세요!</h1></div><canvas id="holding" width="1280" height="720" aria-label="나란히 걸린 보드 세 개와 배경을 지운 내 모습. 보드에 손을 가까이 가져가면 선택됩니다."></canvas><div class="cards" id="cards" aria-label="스케이트보드 선택"></div>
 <div id="countdownPanel" hidden><p>스케이트보드가 마음에 드시나요?<br><strong id="countdownText" role="status">5초 후 타는 법을 배우러 이동합니다.</strong></p><b id="countdownNumber" aria-hidden="true">5</b><progress id="countdownProgress" max="5" value="0" aria-label="타는 법 배우기로 이동하기까지의 진행 시간"></progress></div></div>
@@ -305,6 +305,7 @@ function fitPreview(canvas){
  if(w&&h&&(canvas.width!==w||canvas.height!==h)){canvas.width=w;canvas.height=h}
 }
 function drawLesson(now){
+ if(participant.missing&&learning.goAt)learning.goAt=now+2000;
  if(learning.goAt&&now>=learning.goAt){enter(selectedTheme);return}
  fitPreview(lessonCanvas);const g=lessonCanvas.getContext('2d'),w=lessonCanvas.width,h=lessonCanvas.height;
  g.fillStyle='#f9f2e1';g.fillRect(0,0,w,h);g.fillStyle='#ded4bc';g.fillRect(0,h*.93,w,h*.07);
@@ -334,7 +335,7 @@ function chooseStudioMode(mode){
 }
 studioHand.onclick=()=>chooseStudioMode('hand');studioFoot.onclick=()=>chooseStudioMode('foot');
 function studioBoardPose(view){
- const p=view.person?.points;if(!p)return null;
+ const p=view.person?.points;if(!p||participant.missing)return null;
  const visible=i=>p[i]?.visibility>.3&&p[i].x>=0&&p[i].x<=1&&p[i].y>=0&&p[i].y<=1;
  const size=Math.min(view.bodyHeight*view.scale*.53,studioCanvas.width*.70,studioCanvas.height*.48)/436;
  if(studioMode==='hand'){
@@ -402,7 +403,7 @@ function drawSelection(now){
  const g=holding.getContext('2d'),w=holding.width,h=holding.height;
  g.fillStyle='#b4a78d';g.fillRect(0,0,w,h);
  if(shopWall.naturalWidth)cover(g,shopWall,0,0,w,h);
- const layout=lobbyLayout(w,h),person=currentPerson(now),tracked=person&&now-person.time<500?person:null;
+ const layout=lobbyLayout(w,h),person=currentPerson(now),tracked=person&&!participant.missing&&now-person.time<500?person:null;
  if(person&&!rackCalibrated){rackHeight=Math.max(.28,Math.min(.34,layout.point(person.points[0]).y/h-.18));rackCalibrated=true}
  document.querySelector('.lobby-heading').style.top=Math.max(.02,rackHeight-.24)*100+'%';
  const boards=rackBoards(w,h);
@@ -481,7 +482,7 @@ function jump(){if(!active||finished||!rider.line)return;rider.line=null;rider.v
 push.onclick=propel;ollie.onclick=jump;
 addEventListener('keydown',e=>{if(!active||!['Space','ArrowRight'].includes(e.code))return;if(e.code==='Space'&&[camera,back].includes(document.activeElement))return;e.preventDefault();if(!e.repeat)(e.code==='Space'?jump:propel)()});
 function step(dt){
- if(finished)return;
+ if(finished||participant.locked&&participant.missing)return;
  const r=rider,oldY=r.y;r.x+=r.vx*dt;r.vx=Math.max(0,r.vx-(r.line?90:16)*dt);
  while(r.line&&r.x>r.line.b[0]){const prev=r.line;r.line=rails.find(l=>(l.path===prev.path||theme===themes[0])&&Math.abs(l.a[0]-prev.b[0])<.001&&Math.abs(l.a[1]-prev.b[1])<.001&&l.b[0]>prev.b[0])}
  if(r.line)r.y=height(r.line,r.x);
@@ -597,8 +598,30 @@ function frame(now){
  else if(stage===4)drawStudio(now);
  }finally{last=now;requestAnimationFrame(frame)}
 }requestAnimationFrame(frame);
-const base='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
 let stream=null,session=0,model,webcamBackdrop=null;
+let participant={id:0,locked:false,missing:false};
+async function createPoseModel(){
+ const worker=new Worker('pose-worker.js'),pending=new Map();let sequence=0,callback=()=>{};
+ const request=(message,transfer=[])=>new Promise((resolve,reject)=>{const job=++sequence;pending.set(job,{resolve,reject});worker.postMessage({...message,job},transfer)});
+ worker.onmessage=({data})=>{const item=pending.get(data.job);if(!item){data.image?.close();data.segmentationMask?.close();return}pending.delete(data.job);if(data.error)item.reject(new Error(data.error));else item.resolve(data)};
+ const close=()=>{worker.terminate();for(const item of pending.values())item.reject(new Error('Camera stopped'));pending.clear()};
+ worker.onerror=event=>{for(const item of pending.values())item.reject(new Error(event.message||'Pose worker failed'));pending.clear()};
+ try{await request({type:'init'})}catch(error){close();throw error}
+ return {onResults(fn){callback=fn},close,async send({image}){
+   const frame=await createImageBitmap(image),result=await request({type:'frame',image:frame,time:performance.now(),needMask:stage!==4},[frame]);
+   try{callback(result)}finally{result.image?.close();result.segmentationMask?.close()}
+ }};
+}
+function updateParticipant(tracking){
+ if(!tracking)return;
+ if(tracking.id&&tracking.id!==participant.id){
+   // A replacement participant continues this stage with fresh body calibration.
+   resetMotion();lobbyPerson=null;finishPerson=null;reach=null;previewStartedAt=null;heldWrist=null;studioWrist=null;lastStancePush=-Infinity;
+ }
+ participant=tracking;
+ const text=tracking.missing?'같은 체험자를 다시 찾고 있어요':tracking.locked?'참가자 1명을 따라가고 있어요':'체험자를 기다리고 있어요';
+ if(participantStatus.textContent!==text)participantStatus.textContent=text;
+}
 let motion;
 function resetMotion(keepGround=false){
  const ground=keepGround?motion?.ground:null;
@@ -627,7 +650,7 @@ function compositePerson(source){
  personBrush.globalCompositeOperation='destination-in';personBrush.drawImage(personMask,0,0);personBrush.globalCompositeOperation='source-over';
 }
 function refreshPersonVideo(now){
- if(stage===4||!stream||cam.readyState<2||cam.currentTime===lastPersonVideoTime||!currentPerson(now))return;
+ if(stage===4||participant.missing||!stream||cam.readyState<2||cam.currentTime===lastPersonVideoTime||!currentPerson(now))return;
  compositePerson(cam);lastPersonVideoTime=cam.currentTime;
 }
 function personBounds(points){
@@ -736,7 +759,7 @@ function measure(points,allowActions=true){
  }
  return true;
 }
-function stop(){session++;stream?.getTracks().forEach(t=>t.stop());stream=null;cam.srcObject=null;webcamBackdrop=null;finishPerson=null;lobbyPerson=null;lastPersonVideoTime=-1;previewStartedAt=null;reach=null;rackCalibrated=false;cam.hidden=true;resetMotion();camera.textContent='내 몸으로 타기';choiceCamera.textContent='웹캠 켜기';lobbyStatus='웹캠 켜기를 누르고 카메라 사용을 허용해 주세요.'}
+function stop(){session++;model?.close();model=null;participant={id:0,locked:false,missing:false};participantStatus.textContent='체험자를 기다리고 있어요';stream?.getTracks().forEach(t=>t.stop());stream=null;cam.srcObject=null;webcamBackdrop=null;finishPerson=null;lobbyPerson=null;lastPersonVideoTime=-1;previewStartedAt=null;reach=null;rackCalibrated=false;cam.hidden=true;resetMotion();camera.textContent='내 몸으로 타기';choiceCamera.textContent='웹캠 켜기';lobbyStatus='웹캠 켜기를 누르고 카메라 사용을 허용해 주세요.'}
 camera.onclick=async()=>{
  if(camera.disabled)return;
  if(stream){stop();msg.textContent='카메라 꺼짐 · 스페이스바로 탈 수 있어요.';return}
@@ -744,9 +767,8 @@ camera.onclick=async()=>{
  try{
  const acquired=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
  if(id!==session){acquired.getTracks().forEach(t=>t.stop());return}stream=acquired;cam.srcObject=stream;cam.hidden=true;await cam.play();webcamBackdrop=makeRoomBackground();lobbyStatus=msg.textContent='동작 인식 도구를 불러오는 중…';
- if(!window.Pose)await new Promise((ok,fail)=>{const s=document.createElement('script');s.src=base+'pose.js';s.onload=ok;s.onerror=fail;document.head.append(s)});
- if(id!==session)return;if(!model){model=new Pose({locateFile:file=>base+file});model.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:true,smoothSegmentation:true,minDetectionConfidence:.3,minTrackingConfidence:.3})}
- model.onResults(r=>{if(id!==session)return;updateFinishPerson(r);if(stage===1){measure(r.poseLandmarks,false);lobbyStatus='얼굴과 손이 보이도록 카메라 앞에 서 주세요.';return}if(stage===2){measure(r.poseLandmarks);updateStance(r.poseLandmarks,performance.now());return}if(stage===4||finished)return;webcamBackdrop?.userData.update(r);const tracked=active?measure(r.poseLandmarks):false;const wide=updateStance(r.poseLandmarks,performance.now());msg.textContent=tracked?(motion.lastFeetSeen===null||performance.now()-motion.lastFeetSeen>250?'양쪽 발목이 카메라에 보이도록 조금 뒤로 서 주세요.':motion.ground?(wide?'좋아요! 두 발을 벌리고 전진 중 · 두 발 함께 가볍게 뛰면 알리!':'두 발을 어깨너비로 벌려 보세요. 보드가 앞으로 갑니다.'):'양발을 바닥에 두고 잠깐 서 주세요.'):'뒤로 물러나 무릎과 양쪽 발목까지 보여 주세요.'});
+ const readyModel=await createPoseModel();if(id!==session){readyModel.close();return}model=readyModel;
+ model.onResults(r=>{if(id!==session)return;updateParticipant(r.tracking);updateFinishPerson(r);if(stage===1){measure(r.poseLandmarks,false);lobbyStatus='얼굴과 손이 보이도록 카메라 앞에 서 주세요.';return}if(stage===2){measure(r.poseLandmarks);updateStance(r.poseLandmarks,performance.now());return}if(stage===4||finished)return;webcamBackdrop?.userData.update(r);const tracked=active?measure(r.poseLandmarks):false;const wide=updateStance(r.poseLandmarks,performance.now());msg.textContent=participant.missing?'체험자를 다시 찾고 있어요. 잠시 기다려 주세요.':tracked?(motion.lastFeetSeen===null||performance.now()-motion.lastFeetSeen>250?'양쪽 발목이 카메라에 보이도록 조금 뒤로 서 주세요.':motion.ground?(wide?'좋아요! 두 발을 벌리고 전진 중 · 두 발 함께 가볍게 뛰면 알리!':'두 발을 어깨너비로 벌려 보세요. 보드가 앞으로 갑니다.'):'양발을 바닥에 두고 잠깐 서 주세요.'):'뒤로 물러나 무릎과 양쪽 발목까지 보여 주세요.'});
  camera.textContent='카메라 끄기';camera.disabled=false;choiceCamera.disabled=false;choiceCamera.textContent='웹캠 끄기';
  const input=document.createElement('canvas'),inputBrush=input.getContext('2d');input.width=Math.min(480,cam.videoWidth);input.height=Math.round(input.width*cam.videoHeight/cam.videoWidth);
  let sentTime=-1;
